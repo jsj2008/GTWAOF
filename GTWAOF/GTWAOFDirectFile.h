@@ -12,6 +12,7 @@
 @interface GTWAOFDirectFile : NSObject<GTWAOF> {
     int fd;
     NSString* _filename;
+    NSCache* _pageCache;
 }
 
 @property dispatch_queue_t updateQueue;

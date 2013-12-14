@@ -72,7 +72,9 @@
 
 - (GTWAOFDirectFile*) init {
     if (self = [super init]) {
-        self.updateQueue  = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
+        self.updateQueue    = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
+        _pageCache          = [[NSCache alloc] init];
+        [_pageCache setCountLimit:16];
     }
     return self;
 }
@@ -80,6 +82,13 @@
 - (GTWAOFPage*) readPage: (NSInteger) pageID {
 	if (pageID >= _pageCount)
 		return nil;
+    
+    GTWAOFPage* page    = [_pageCache objectForKey:@(pageID)];
+    if (page) {
+//        NSLog(@"got cached page %lld\n", (long long) pageID);
+        return page;
+    }
+    
 	uint64_t offset	= pageID * _pageSize;
     char* buf   = malloc(_pageSize);
     size_t to_read  = _pageSize;
@@ -103,7 +112,11 @@
 		}
 	} while (1);
     NSData* data    = [NSData dataWithBytesNoCopy:buf length:_pageSize];
-    return [[GTWAOFPage alloc] initWithPageID:pageID data:data committed:YES];
+    page    = [[GTWAOFPage alloc] initWithPageID:pageID data:data committed:YES];
+    
+//    NSLog(@"caching page %lld\n", (long long) pageID);
+    [_pageCache setObject:page forKey:@(pageID)];
+    return page;
 }
 
 - (BOOL)updateWithBlock:(BOOL(^)(GTWAOFUpdateContext* ctx))block {
