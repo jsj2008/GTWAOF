@@ -132,17 +132,6 @@
         NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
         NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
         
-//        NSMutableDictionary* map    = [NSMutableDictionary dictionary];
-//        NSMutableSet* keys  = [NSMutableSet setWithObjects:skey, pkey, okey, gkey, nil];
-//        [_dict enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-//            if ([keys containsObject:obj]) {
-//                map[obj]    = key;
-//                [keys removeObject:obj];
-//                if ([keys count] == 0)
-//                    *stop   = YES;
-//            }
-//        }];
-        
         id<GTWTerm> s       = termFromData(cache, parser, [_dict anyKeyForObject:skey]);
         id<GTWTerm> p       = termFromData(cache, parser, [_dict anyKeyForObject:pkey]);
         id<GTWTerm> o       = termFromData(cache, parser, [_dict anyKeyForObject:okey]);
@@ -224,8 +213,8 @@ static NSUInteger integerFromData(NSData* data) {
 - (BOOL) addQuad: (id<GTWQuad>) q error:(NSError **)error {
     if (_bulkLoading) {
         [_bulkQuads addObject:q];
-//        if ([_bulkQuads count] >= 4080) {
-        if ([_bulkQuads count] >= 1) {  // TODO: this limits pages to 1 quad during bulk loading
+        if ([_bulkQuads count] >= 4080) {
+//        if ([_bulkQuads count] >= 1) {  // TODO: this limits pages to 1 quad during bulk loading
             if (self.verbose)
                 NSLog(@"Flushing %llu quads", (unsigned long long)[_bulkQuads count]);
             [self endBulkLoad];
@@ -280,6 +269,7 @@ static NSUInteger integerFromData(NSData* data) {
         }
         [quadsData addObject:quadData];
     }
+//    NSLog(@"creating new quads head");
     _quads  = [_quads quadsByAddingQuads:quadsData];
     if ([map count])
         _dict   = [_dict dictionaryByAddingDictionary:map];
@@ -302,8 +292,8 @@ static NSUInteger integerFromData(NSData* data) {
     __block NSInteger pageID    = -1;
     NSMutableArray* pages   = [NSMutableArray array];
     while (quads) {
-        [GTWAOFRawQuads enumerateObjectsForPage:quads.pageID fromAOF:_aof usingBlock:^(id key, NSUInteger idx, BOOL *stop) {
-            NSData* quadData    = key;
+        [GTWAOFRawQuads enumerateObjectsForPage:quads.pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+            NSData* quadData    = [key subdataWithRange:range];
 //            NSLog(@"-> checking quad with data: %@", quadData);
             if ([quadData isEqual:removeQuadData]) {
                 pageID  = quads.pageID;
@@ -331,8 +321,8 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSMutableArray* quadsData   = [NSMutableArray array];
         GTWAOFRawQuads* quadsPage   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:_aof];
-        [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(id key, NSUInteger idx, BOOL *stop) {
-            NSData* quadData    = key;
+        [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+            NSData* quadData    = [key subdataWithRange:range];
             if (![quadData isEqual:removeQuadData]) {
                 [quadsData addObject:quadData];
             }
@@ -356,8 +346,8 @@ static NSUInteger integerFromData(NSData* data) {
         for (NSNumber* n in e) {
             pageID  = [n integerValue];
             NSMutableArray* quadsData   = [NSMutableArray array];
-            [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(id key, NSUInteger idx, BOOL *stop) {
-                NSData* quadData    = key;
+            [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+                NSData* quadData    = [key subdataWithRange:range];
                 if (![quadData isEqual:removeQuadData]) {
                     [quadsData addObject:quadData];
                 }
