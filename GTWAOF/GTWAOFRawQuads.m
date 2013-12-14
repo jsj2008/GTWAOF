@@ -179,7 +179,12 @@
     return [NSData dataWithBytesNoCopy:buf length:32];
 }
 
-+ (void)enumerateObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(id key, NSUInteger idx, BOOL *stop))block followTail:(BOOL)follow {
++ (NSRange) rangeOfObjectAtIndex: (NSUInteger) index {
+    unsigned long offset    = DATA_OFFSET + (index*32);
+    return NSMakeRange(offset, 32);
+}
+
++ (void)enumerateObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange range, NSUInteger idx, BOOL *stop))block followTail:(BOOL)follow {
     @autoreleasepool {
         while (pageID >= 0) {
             GTWAOFRawQuads* q  = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:aof];
@@ -196,8 +201,8 @@
             NSUInteger i;
             BOOL stop   = NO;
             for (i = 0; i < count; i++) {
-                NSData* quad   = [q objectAtIndex:i];
-                block(quad, i, &stop);
+                NSRange range   = [self rangeOfObjectAtIndex:i];
+                block(q.head.data, range, i, &stop);
                 if (stop)
                     break;
             }
@@ -209,8 +214,17 @@
     }
 }
 
+- (void)enumerateDataRangeUsingBlock:(void (^)(NSData* obj, NSRange range, BOOL *stop))block {
+    [GTWAOFRawQuads enumerateObjectsForPage:self.pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+        block(key, range, stop);
+    } followTail:YES];
+}
+
 - (void)enumerateObjectsUsingBlock:(void (^)(id obj, NSUInteger idx, BOOL *stop))block {
-    [GTWAOFRawQuads enumerateObjectsForPage:self.pageID fromAOF:_aof usingBlock:block followTail:YES];
+    [GTWAOFRawQuads enumerateObjectsForPage:self.pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+        NSData* data    = [key subdataWithRange:range];
+        block(data, idx, stop);
+    } followTail:YES];
 }
 
 NSMutableData* emptyQuadsData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {

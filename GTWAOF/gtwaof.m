@@ -6,6 +6,7 @@
 //  Copyright (c) 2013 Gregory Todd Williams. All rights reserved.
 //
 
+#include <sys/time.h>
 #include <string.h>
 #import <Foundation/Foundation.h>
 #import "GTWAOF.h"
@@ -21,6 +22,21 @@
 #import <SPARQLKit/SPKNTriplesSerializer.h>
 #import "GTWAOFQuadStore.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+
+double current_time ( void ) {
+	struct timeval t;
+	gettimeofday (&t, NULL);
+	double start	= t.tv_sec + (t.tv_usec / 1000000.0);
+	return start;
+}
+
+double elapsed_time ( double start ) {
+	struct timeval t;
+	gettimeofday (&t, NULL);
+	double time	= t.tv_sec + (t.tv_usec / 1000000.0);
+	double elapsed	= time - start;
+	return elapsed;
+}
 
 GTWAOFPage* newPageWithChar( GTWAOFUpdateContext *ctx, char c ) {
     NSUInteger pageSize = [ctx.aof pageSize];
@@ -130,6 +146,7 @@ int main(int argc, const char * argv[]) {
         return 0;
     }
     
+    double start    = current_time();
     srand([[NSDate date] timeIntervalSince1970]);
     GTWAOFDirectFile* aof   = [[GTWAOFDirectFile alloc] initWithFilename:@"test.db"];
     NSLog(@"aof file: %@", aof);
@@ -153,7 +170,7 @@ int main(int argc, const char * argv[]) {
         NSInteger count = aof.pageCount;
         for (pid = 0; pid < count; pid++) {
             GTWAOFPage* p   = [aof readPage:pid];
-            NSLog(@"-> %@", p);
+            NSLog(@"page -> %@", p);
         }
     } else if (!strcmp(op, "dict")) {
         GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
@@ -256,11 +273,14 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "export")) {
         GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
         NSError* error;
+        double start_export = current_time();
         [store enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:^(id<GTWQuad> q) {
             fprintf(stdout, "%s\n", [[q description] UTF8String]);
         } error:&error];
+        fprintf(stderr, "export time: %lf\n", elapsed_time(start_export));
     } else if (!strcmp(op, "import")) {
         GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
+        store.verbose       = YES;
         __block NSError* error;
         NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
         const char* basestr = (argc > 3) ? argv[3] : "http://base.example.org/";
@@ -273,14 +293,12 @@ int main(int argc, const char * argv[]) {
         if (p) {
             [store beginBulkLoad];
             __block NSUInteger count    = 0;
-            NSProgress* prog    = [NSProgress progressWithTotalUnitCount:INT64_MAX];
             [p enumerateTriplesWithBlock:^(id<GTWTriple> t) {
                 GTWQuad* q  = [GTWQuad quadFromTriple:t withGraph:graph];
                 [store addQuad:q error:&error];
                 count++;
-                [prog setCompletedUnitCount:count];
                 if (count % 25 == 0) {
-                    fprintf(stderr, "\r%llu quads (%s)", (unsigned long long) count, [[prog description] UTF8String]);
+                    fprintf(stderr, "\r%llu quads", (unsigned long long) count);
                 }
             } error:nil];
             fprintf(stderr, "\n");
@@ -357,6 +375,9 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "stress")) {
         stress(aof);
     }
+    
+    fprintf(stderr, "total time: %lf\n", elapsed_time(start));
+
     return 0;
 }
 

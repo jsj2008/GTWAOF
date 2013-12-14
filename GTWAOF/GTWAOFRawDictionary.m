@@ -117,8 +117,8 @@
     if (self = [super init]) {
         _cache  = [[NSCache alloc] init];
         _revCache   = [[NSCache alloc] init];
-        [_cache setCountLimit:512];
-        [_revCache setCountLimit:512];
+        [_cache setCountLimit:1024];
+        [_revCache setCountLimit:1024];
     }
     return self;
 }
@@ -164,9 +164,9 @@
     
     [self enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
 //        NSLog(@"%@ <=> %@", key, aKey);
-        [_cache setObject:obj forKey:key];
-        [_revCache setObject:key forKey:obj];
         if ([key isEqual:aKey]) {
+            [_cache setObject:obj forKey:key];
+            [_revCache setObject:key forKey:obj];
             value   = obj;
             *stop   = YES;
         }
@@ -185,14 +185,12 @@
     return [keys copy];
 }
 
-- (NSData*)anyKeyForObject:(id)anObject {
-    __block NSData* theKey  = [_revCache objectForKey:anObject];
-    if (theKey)
-        return theKey;
-    [self enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-        if ([obj isEqual:anObject]) {
-            [_cache setObject:obj forKey:key];
-            [_revCache setObject:key forKey:obj];
+- (NSData*)anyKeyForData:(NSData*)anObject withRange:(NSRange) range {
+    __block NSData* theKey;
+    const char* anObjectBytes   = &(((const char*) anObject.bytes)[range.location]);
+    [self enumerateKeysAndObjectsUsingBlock:^(NSData* key, NSData* obj, BOOL *stop) {
+        const char* objBytes        = &(((const char*) obj.bytes)[range.location]);
+        if (!memcmp(objBytes, anObjectBytes, range.length)) {
             theKey  = key;
             *stop   = YES;
         }
@@ -200,7 +198,22 @@
     return theKey;
 }
 
-+ (void)enumerateKeysAndObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(id key, id obj, BOOL *stop))block {
+- (NSData*)anyKeyForObject:(NSData*)anObject {
+    __block NSData* theKey  = [_revCache objectForKey:anObject];
+    if (theKey)
+        return theKey;
+    [self enumerateDataPairsUsingBlock:^(NSData *keydata, NSRange keyrange, NSData *objdata, NSRange objrange, BOOL *stop) {
+        const char* objbytes    = &(((const char*)objdata.bytes)[objrange.location]);
+        if (!memcmp(objbytes, anObject.bytes, objrange.length)) {
+            NSData* key = [keydata subdataWithRange:keyrange];
+            theKey  = key;
+            *stop   = YES;
+        }
+    }];
+    return theKey;
+}
+
++ (void)enumerateDataPairsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange keyrange, NSData* obj, NSRange objrange, BOOL *stop))block {
     while (pageID >= 0) {
         GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:aof];
 //        NSLog(@"Dictionary Page: %lu", d.pageID);
@@ -224,21 +237,25 @@
             unsigned short klen = NSSwapBigShortToHost(bigklen);
             if (!klen)
                 break;
-            char* kbuf      = malloc(klen);
-            [data getBytes:kbuf range:NSMakeRange(offset, klen)];
+//            char* kbuf      = malloc(klen);
+//            [data getBytes:kbuf range:NSMakeRange(offset, klen)];
+            NSData* key     = [data subdataWithRange:NSMakeRange(offset, klen)];
             offset  += klen;
-            NSData* key     = [NSData dataWithBytesNoCopy:kbuf length:klen];
+//            NSData* key     = [NSData dataWithBytesNoCopy:kbuf length:klen];
             
             [data getBytes:&bigvlen range:NSMakeRange(offset, 2)];
             offset  += 2;
             
             unsigned short vlen = NSSwapBigShortToHost(bigvlen);
-            char* vbuf      = malloc(vlen);
-            [data getBytes:vbuf range:NSMakeRange(offset, vlen)];
+//            char* vbuf      = malloc(vlen);
+//            [data getBytes:vbuf range:NSMakeRange(offset, vlen)];
+            NSData* value   = [data subdataWithRange:NSMakeRange(offset, vlen)];
             offset  += vlen;
-            NSData* value   = [NSData dataWithBytesNoCopy:vbuf length:vlen];
+//            NSData* value   = [NSData dataWithBytesNoCopy:vbuf length:vlen];
             
-            block(key, value, &stop);
+            NSRange keyrange    = NSMakeRange(0, key.length);
+            NSRange valrange    = NSMakeRange(0, value.length);
+            block(key, keyrange, value, valrange, &stop);
             if (stop)
                 break;
         }
@@ -246,8 +263,16 @@
     }
 }
 
+- (void)enumerateDataPairsUsingBlock:(void (^)(NSData *keydata, NSRange keyrange, NSData *objdata, NSRange objrange, BOOL *stop))block {
+    [GTWAOFRawDictionary enumerateDataPairsForPage:self.pageID fromAOF:_aof usingBlock:block];
+}
+
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block {
-    [GTWAOFRawDictionary enumerateKeysAndObjectsForPage:self.pageID fromAOF:_aof usingBlock:block];
+    [GTWAOFRawDictionary enumerateDataPairsForPage:self.pageID fromAOF:_aof usingBlock:^(NSData *keydata, NSRange keyrange, NSData *objdata, NSRange objrange, BOOL *stop) {
+        NSData* k   = [keydata subdataWithRange:keyrange];
+        NSData* v   = [objdata subdataWithRange:objrange];
+        block(k, v, stop);
+    }];
 }
 
 NSMutableData* emptyDictData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {

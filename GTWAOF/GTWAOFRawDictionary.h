@@ -35,7 +35,9 @@
 - (id) objectForKey:(id)aKey;
 - (NSEnumerator*) keyEnumerator;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;
+- (void)enumerateDataPairsUsingBlock:(void (^)(NSData *keydata, NSRange keyrange, NSData *objdata, NSRange objrange, BOOL *stop))block;
 - (NSArray *)allKeysForObject:(id)anObject;
-- (NSData*)anyKeyForObject:(id)anObject;
+- (NSData*)anyKeyForObject:(NSData*)anObject;
+- (NSData*)anyKeyForData:(NSData*)anObject withRange:(NSRange) range;
 
 @end
