@@ -54,12 +54,17 @@
         NSData* tdata       = [_dict objectForKey:gkey];
         NSString* string    = [[NSString alloc] initWithData:tdata encoding:NSUTF8StringEncoding];
         SPKSPARQLLexer* lexer   = [[SPKSPARQLLexer alloc] initWithString:string];
+        p.lexer = lexer;
         SPKSPARQLToken* t       = [lexer getTokenWithError:nil];
         if (!t) {
             ok  = NO;
             *stop   = YES;
         }
-        id<GTWTerm> term        = [p tokenAsTerm:t withErrors:nil];
+        NSMutableArray* errors  = [NSMutableArray array];
+        id<GTWTerm> term        = [p tokenAsTerm:t withErrors:errors];
+        if ([errors count]) {
+            NSLog(@"%@", errors);
+        }
         if (!term) {
             NSLog(@"Cannot create term from token %@", t);
             ok  = NO;
@@ -132,10 +137,15 @@
         NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
         NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
         
-        id<GTWTerm> s       = termFromData(cache, parser, [_dict anyKeyForObject:skey]);
-        id<GTWTerm> p       = termFromData(cache, parser, [_dict anyKeyForObject:pkey]);
-        id<GTWTerm> o       = termFromData(cache, parser, [_dict anyKeyForObject:okey]);
-        id<GTWTerm> g       = termFromData(cache, parser, [_dict anyKeyForObject:gkey]);
+        id<GTWTerm> s       = termFromData(cache, parser, [_dict keyForObject:skey]);
+        id<GTWTerm> p       = termFromData(cache, parser, [_dict keyForObject:pkey]);
+        id<GTWTerm> o       = termFromData(cache, parser, [_dict keyForObject:okey]);
+        id<GTWTerm> g       = termFromData(cache, parser, [_dict keyForObject:gkey]);
+        if (!s || !p || !o || !g) {
+            NSLog(@"bad quad decoded from AOF quadstore");
+            *stop   = YES;
+            return;
+        }
         GTWQuad* q          = [[GTWQuad alloc] initWithSubject:s predicate:p object:o graph:g];
         block(q);
     }];

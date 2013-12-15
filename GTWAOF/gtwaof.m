@@ -69,10 +69,24 @@ void stress (id<GTWAOF> aof) {
 id<GTWTerm> termFromData(SPKTurtleParser* p, NSData* data) {
     NSString* string        = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
     SPKSPARQLLexer* lexer   = [[SPKSPARQLLexer alloc] initWithString:string];
-    SPKSPARQLToken* t       = [lexer getTokenWithError:nil];
-    if (!t)
+    p.lexer                 = lexer;
+    NSError* error;
+    SPKSPARQLToken* t       = [lexer getTokenWithError:&error];
+    if (error) {
+        NSLog(@"Failed to get token: %@", error);
         return nil;
-    id<GTWTerm> term        = [p tokenAsTerm:t withErrors:nil];
+    }
+    NSMutableArray* errors  = [NSMutableArray array];
+    if (!t) {
+        NSLog(@"No token found");
+        return nil;
+    }
+    id<GTWTerm> term        = [p tokenAsTerm:t withErrors:errors];
+    if ([errors count]) {
+        error  = errors[0];
+        NSLog(@"Cannot create term from token %@: %@", t, error);
+        return nil;
+    }
     if (!term) {
         NSLog(@"Cannot create term from token %@", t);
         return nil;
@@ -92,12 +106,12 @@ NSData* dataFromInteger(NSUInteger value) {
     return [NSData dataWithBytes:&bign length:8];
 }
 
-NSUInteger integerFromData(NSData* data) {
-    long long bign;
-    [data getBytes:&bign range:NSMakeRange(0, 8)];
-    long long n = NSSwapBigLongLongToHost(bign);
-    return (NSUInteger) n;
-}
+//NSUInteger integerFromData(NSData* data) {
+//    long long bign;
+//    [data getBytes:&bign range:NSMakeRange(0, 8)];
+//    long long n = NSSwapBigLongLongToHost(bign);
+//    return (NSUInteger) n;
+//}
 
 void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     NSData* data    = p.data;
@@ -134,7 +148,7 @@ int main(int argc, const char * argv[]) {
         fprintf(stdout, "    %s dict\n", argv[0]);
         fprintf(stdout, "    %s adddict key=val ...\n", argv[0]);
         fprintf(stdout, "    %s mkdict key=val ...\n", argv[0]);
-        fprintf(stdout, "    %s value key ...\n", argv[0]);
+        fprintf(stdout, "    %s term ID ...\n", argv[0]);
         fprintf(stdout, "    %s quads\n", argv[0]);
         fprintf(stdout, "    %s addquads s:p:o:g ...\n", argv[0]);
         fprintf(stdout, "    %s mkquads s:p:o:g ...\n", argv[0]);
@@ -174,10 +188,12 @@ int main(int argc, const char * argv[]) {
         }
     } else if (!strcmp(op, "dict")) {
         GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
-        [d enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+        [d enumerateKeysAndObjectsUsingBlock:^(NSData* key, NSData* obj, BOOL *stop) {
             NSString* k = [[NSString alloc] initWithData:key encoding:NSUTF8StringEncoding];
-            NSString* v = [[NSString alloc] initWithData:obj encoding:NSUTF8StringEncoding];
-            NSString* d = [NSString stringWithFormat:@"%@ -> %@", k, v];
+            long long bign;
+            [obj getBytes:&bign range:NSMakeRange(0, 8)];
+            long long v = NSSwapBigLongLongToHost(bign);
+            NSString* d = [NSString stringWithFormat:@"%6lld -> %@", v, k];
             fprintf(stdout, "%s\n", [d UTF8String]);
         }];
     } else if (!strcmp(op, "adddict")) {
@@ -207,14 +223,17 @@ int main(int argc, const char * argv[]) {
         
         NSLog(@"creating dictionary: %@", dict);
         [GTWAOFRawDictionary dictionaryWithDictionary:dict aof:aof];
-    } else if (!strcmp(op, "value")) {
-        NSString* s     = [NSString stringWithFormat:@"%s", argv[2]];
-        NSData* key     = [s dataUsingEncoding:NSUTF8StringEncoding];
+    } else if (!strcmp(op, "term")) {
+        long long n     = atoll(argv[2]);
+        long long bign  = NSSwapHostLongLongToBig(n);
+        NSData* nodeID  = [NSData dataWithBytes:&bign length:8];
+        SPKTurtleParser* parser  = [[SPKTurtleParser alloc] init];
         GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
-        NSData* value   = [d objectForKey:key];
+        NSLog(@"%@", d);
+        NSData* value   = [d keyForObject:nodeID];
         if (value) {
-            NSString* v     = [[NSString alloc] initWithData:value encoding:NSUTF8StringEncoding];
-            fprintf(stdout, "%s\n", [v UTF8String]);
+            id<GTWTerm> t   = termFromData(parser, value);
+            fprintf(stdout, "%s\n", [[t description] UTF8String]);
         }
     } else if (!strcmp(op, "quads")) {
         GTWAOFRawQuads* q  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:aof];
@@ -296,13 +315,19 @@ int main(int argc, const char * argv[]) {
             [p enumerateTriplesWithBlock:^(id<GTWTriple> t) {
                 GTWQuad* q  = [GTWQuad quadFromTriple:t withGraph:graph];
                 [store addQuad:q error:&error];
+                if (error) {
+                    NSLog(@"%@", error);
+                }
                 count++;
-                if (count % 25 == 0) {
+                if (count % 250 == 0) {
                     fprintf(stderr, "\r%llu quads", (unsigned long long) count);
                 }
-            } error:nil];
-            fprintf(stderr, "\n");
+            } error:&error];
+            if (error) {
+                NSLog(@"%@", error);
+            }
             [store endBulkLoad];
+            fprintf(stderr, "\r%llu quads imported\n", (unsigned long long) count);
         } else {
             NSLog(@"Could not construct parser");
         }

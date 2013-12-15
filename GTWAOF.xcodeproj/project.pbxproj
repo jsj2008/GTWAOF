@@ -29,6 +29,8 @@
 		37527E9218564EE80085556E /* GTWAOFRawQuads.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E9018564EE80085556E /* GTWAOFRawQuads.m */; };
 		37527E95185682D20085556E /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
 		37527E96185682D20085556E /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
+		375A71B8185D6FA40060C151 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
+		375A71B9185D6FA40060C151 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
 		378627281856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
 		378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
 /* End PBXBuildFile section */
@@ -69,6 +71,8 @@
 		37527E9018564EE80085556E /* GTWAOFRawQuads.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFRawQuads.m; sourceTree = "<group>"; };
 		37527E93185682D20085556E /* GTWAOFQuadStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFQuadStore.h; sourceTree = "<group>"; };
 		37527E94185682D20085556E /* GTWAOFQuadStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFQuadStore.m; sourceTree = "<group>"; };
+		375A71B6185D6FA40060C151 /* GZIP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GZIP.h; sourceTree = "<group>"; };
+		375A71B7185D6FA40060C151 /* GZIP.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GZIP.m; sourceTree = "<group>"; };
 		378627261856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "GTWAOFPage+GTWAOFLinkedPage.h"; sourceTree = "<group>"; };
 		378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "GTWAOFPage+GTWAOFLinkedPage.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -148,6 +152,8 @@
 				37527E9018564EE80085556E /* GTWAOFRawQuads.m */,
 				378627261856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.h */,
 				378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */,
+				375A71B6185D6FA40060C151 /* GZIP.h */,
+				375A71B7185D6FA40060C151 /* GZIP.m */,
 			);
 			path = GTWAOF;
 			sourceTree = "<group>";
@@ -253,6 +259,7 @@
 				37527E81185584270085556E /* GTWAOFRawDictionary.m in Sources */,
 				37527E6A1855177C0085556E /* GTWAOFDirectFile.m in Sources */,
 				37527E9118564EE80085556E /* GTWAOFRawQuads.m in Sources */,
+				375A71B8185D6FA40060C151 /* GZIP.m in Sources */,
 				378627281856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				37527E95185682D20085556E /* GTWAOFQuadStore.m in Sources */,
 				37527E6D18552F6D0085556E /* GTWAOFUpdateContext.m in Sources */,
@@ -265,6 +272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				37527E82185584320085556E /* GTWAOFRawDictionary.m in Sources */,
+				375A71B9185D6FA40060C151 /* GZIP.m in Sources */,
 				378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				37527E9218564EE80085556E /* GTWAOFRawQuads.m in Sources */,
 				37527E8518558CE20085556E /* gtwaof.m in Sources */,

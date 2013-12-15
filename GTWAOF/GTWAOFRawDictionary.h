@@ -15,6 +15,8 @@
 @interface GTWAOFRawDictionary : NSObject {
     id<GTWAOF> _aof;
     GTWAOFPage* _head;
+    NSDictionary* _pageDict;
+    NSDictionary* _revPageDict;
     NSCache* _cache;
     NSCache* _revCache;
 }
@@ -34,10 +36,7 @@
 
 - (id) objectForKey:(id)aKey;
 - (NSEnumerator*) keyEnumerator;
+- (NSData*)keyForObject:(NSData*)anObject;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;
-- (void)enumerateDataPairsUsingBlock:(void (^)(NSData *keydata, NSRange keyrange, NSData *objdata, NSRange objrange, BOOL *stop))block;
-- (NSArray *)allKeysForObject:(id)anObject;
-- (NSData*)anyKeyForObject:(NSData*)anObject;
-- (NSData*)anyKeyForData:(NSData*)anObject withRange:(NSRange) range;
 
 @end

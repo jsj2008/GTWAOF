@@ -76,15 +76,15 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "import"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/Berlin.ttl"
-            isEnabled = "NO">
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/Berlin-med2.ttl"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "export"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "mkdict"
