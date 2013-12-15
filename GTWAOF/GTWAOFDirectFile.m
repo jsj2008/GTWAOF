@@ -32,7 +32,7 @@
         int sr	= stat(filename, &sbuf);
         if (sr == -1 && errno == ENOENT) {
             struct stat buf;
-            fd			= open(filename, O_RDWR|O_CREAT|O_EXCL|O_EXLOCK);
+            fd			= open(filename, O_RDWR|O_CREAT|O_SHLOCK);
             if (fd < 0) {
                 perror("*** failed to create database file");
                 return nil;
@@ -57,7 +57,7 @@
                 return NULL;
             }
             
-            fd			= open(filename, O_RDWR|O_EXLOCK);
+            fd			= open(filename, O_RDWR|O_SHLOCK);
             if (fd == -1) {
                 perror("*** failed to open database file");
                 return nil;
