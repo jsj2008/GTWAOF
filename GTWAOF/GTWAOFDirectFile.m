@@ -25,6 +25,10 @@
 @implementation GTWAOFDirectFile
 
 - (GTWAOFDirectFile*) initWithFilename: (NSString*) file {
+    return [self initWithFilename:file flags:O_RDWR|O_SHLOCK];
+}
+
+- (GTWAOFDirectFile*) initWithFilename: (NSString*) file flags:(int)oflag {
     if (self = [self init]) {
         _filename   = file;
         const char* filename  = [file UTF8String];
@@ -32,7 +36,7 @@
         int sr	= stat(filename, &sbuf);
         if (sr == -1 && errno == ENOENT) {
             struct stat buf;
-            fd			= open(filename, O_RDWR|O_CREAT|O_SHLOCK);
+            fd			= open(filename, O_CREAT|oflag);
             if (fd < 0) {
                 perror("*** failed to create database file");
                 return nil;
@@ -57,7 +61,7 @@
                 return NULL;
             }
             
-            fd			= open(filename, O_RDWR|O_SHLOCK);
+            fd			= open(filename, oflag);
             if (fd == -1) {
                 perror("*** failed to open database file");
                 return nil;
@@ -74,7 +78,7 @@
     if (self = [super init]) {
         self.updateQueue    = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
         _pageCache          = [[NSCache alloc] init];
-        [_pageCache setCountLimit:16];
+        [_pageCache setCountLimit:32];
     }
     return self;
 }
@@ -157,7 +161,7 @@
                 ssize_t written = 0;
                 while (written < to_write) {
                     //d		fprintf(stderr, "- trying to write %d bytes to offset %d\n", (int) (to_write-written), (int) (offset+written));
-                    nwrite = pwrite(fd, buf+written, to_write-written, offset+written);
+                    nwrite = pwrite(fd, (char*)buf+written, to_write-written, offset+written);
                     if (nwrite < 0) {
                         if (errno != EINTR) {
                             perror ("write");

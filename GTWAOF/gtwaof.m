@@ -298,7 +298,7 @@ int main(int argc, const char * argv[]) {
         } error:&error];
         fprintf(stderr, "export time: %lf\n", elapsed_time(start_export));
     } else if (!strcmp(op, "import")) {
-        GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
+        GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         store.verbose       = YES;
         __block NSError* error;
         NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
@@ -332,7 +332,7 @@ int main(int argc, const char * argv[]) {
             NSLog(@"Could not construct parser");
         }
     } else if (!strcmp(op, "delete")) {
-        GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
+        GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         __block NSError* error;
         NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
         const char* basestr = (argc > 3) ? argv[3] : "http://base.example.org/";

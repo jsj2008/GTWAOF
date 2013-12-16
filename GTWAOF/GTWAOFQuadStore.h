@@ -13,18 +13,27 @@
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFRawQuads.h"
 
-@interface GTWAOFQuadStore : NSObject<GTWQuadStore, GTWMutableQuadStore> {
+@interface GTWAOFQuadStore : NSObject<GTWQuadStore> {
     id<GTWAOF> _aof;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
-    NSMutableArray* _bulkQuads;
 }
 
-@property BOOL bulkLoading;
 @property BOOL verbose;
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 - (GTWAOFQuadStore*) initWithAOF: (id<GTWAOF>) aof;
+
+@end
+
+
+@interface GTWMutableAOFQuadStore : GTWAOFQuadStore<GTWMutableQuadStore> {
+    NSMutableArray* _bulkQuads;
+}
+
+@property BOOL bulkLoading;
+
+- (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 
 - (void) beginBulkLoad;
 - (void) endBulkLoad;

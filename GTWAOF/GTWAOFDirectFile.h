@@ -20,5 +20,6 @@
 @property (readonly) NSUInteger pageCount;
 
 - (GTWAOFDirectFile*) initWithFilename: (NSString*) filename;
+- (GTWAOFDirectFile*) initWithFilename: (NSString*) filename flags:(int)oflag;
 
 @end

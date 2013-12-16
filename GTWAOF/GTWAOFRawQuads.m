@@ -71,19 +71,20 @@
         }
     }] mutableCopy];
     __block GTWAOFPage* page;
+    NSUInteger pageSize = [_aof pageSize];
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         int64_t prev  = self.pageID;
         if ([q count]) {
             while ([q count]) {
 //                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
-                NSData* data    = newQuadsData([_aof pageSize], q, prev, self.verbose);
+                NSData* data    = newQuadsData(pageSize, q, prev, self.verbose);
                 if(!data)
                     return NO;
                 page    = [ctx createPageWithData:data];
                 prev    = page.pageID;
             }
         } else {
-            NSData* empty   = emptyQuadsData([_aof pageSize], prev, self.verbose);
+            NSData* empty   = emptyQuadsData(pageSize, prev, self.verbose);
             page            = [ctx createPageWithData:empty];
         }
         return YES;

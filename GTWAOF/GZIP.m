@@ -63,7 +63,7 @@
                 {
                     data.length += CHUNK_SIZE;
                 }
-                stream.next_out = [data mutableBytes] + stream.total_out;
+                stream.next_out = (unsigned char*)[data mutableBytes] + stream.total_out;
                 stream.avail_out = (uint)([data length] - stream.total_out);
                 deflate(&stream, Z_FINISH);
             }
@@ -102,7 +102,7 @@
                 {
                     data.length += [self length] * 0.5;
                 }
-                stream.next_out = [data mutableBytes] + stream.total_out;
+                stream.next_out = (unsigned char*)[data mutableBytes] + stream.total_out;
                 stream.avail_out = (uint)([data length] - stream.total_out);
                 status = inflate (&stream, Z_SYNC_FLUSH);
             }
