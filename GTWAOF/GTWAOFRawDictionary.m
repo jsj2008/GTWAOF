@@ -58,18 +58,19 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 - (GTWAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict {
     NSMutableDictionary* d  = [dict mutableCopy];
     __block GTWAOFPage* page;
+    NSUInteger pageSize = [_aof pageSize];
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         int64_t prev  = self.pageID;
         if ([d count]) {
             while ([d count]) {
-                NSData* data    = newDictData([_aof pageSize], d, prev, self.verbose);
+                NSData* data    = newDictData(pageSize, d, prev, self.verbose);
                 if(!data)
                     return NO;
                 page    = [ctx createPageWithData:data];
                 prev    = page.pageID;
             }
         } else {
-            NSData* empty   = emptyDictData([_aof pageSize], prev, self.verbose);
+            NSData* empty   = emptyDictData(pageSize, prev, self.verbose);
             page            = [ctx createPageWithData:empty];
         }
         return YES;
@@ -176,7 +177,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 - (NSEnumerator*) keyEnumerator {
     NSMutableArray* keys   = [[_pageDict allKeys] mutableCopy];
     if (self.previousPageID >= 0) {
-        GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        GTWAOFRawDictionary* prev   = [self previousPage];
         NSEnumerator* e = [prev keyEnumerator];
         [keys addObjectsFromArray:[e allObjects]];
     }
@@ -188,10 +189,19 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     if (o) {
         return o;
     } else if (self.previousPageID >= 0) {
-        GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        GTWAOFRawDictionary* prev   = [self previousPage];
         return [prev objectForKey:aKey];
     }
     return nil;
+}
+
+- (GTWAOFRawDictionary*) previousPage {
+    if (!_prevPage) {
+        // TODO: this shouldn't be a strong ivar reference; have a global/scoped cache that holds the references
+        GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        _prevPage   = prev;
+    }
+    return _prevPage;
 }
 
 - (NSData*)keyForObject:(NSData*)anObject {
@@ -199,7 +209,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     if (o) {
         return o;
     } else if (self.previousPageID >= 0) {
-        GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        GTWAOFRawDictionary* prev   = [self previousPage];
         return [prev keyForObject:anObject];
     }
     return nil;
@@ -218,8 +228,12 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     while (offset < (aof.pageSize-10)) {
         char kflags, vflags;
 
+//        NSLog(@"key offset %llu", (unsigned long long)offset);
         [data getBytes:&kflags range:NSMakeRange(offset, 1)];
+//        NSLog(@"ok");
         offset++;
+        
+//        NSLog(@"key flag: %x", (int) kflags);
         
         [data getBytes:&bigklen range:NSMakeRange(offset, 4)];
         offset  += 4;
@@ -231,16 +245,22 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
             break;
 //            char* kbuf      = malloc(klen);
 //            [data getBytes:kbuf range:NSMakeRange(offset, klen)];
-        NSData* key     = [data subdataWithRange:NSMakeRange(offset, klen)];
+//        NSData* key     = [data subdataWithRange:NSMakeRange(offset, klen)];
+        NSData* key         = [data copy];
+        NSRange keyrange    = NSMakeRange(offset, klen);
         offset  += klen;
         
         if (kflags & GTWAOFDictionaryTermFlagCompressed) {
-            key = [key gunzippedData];
+            key         = [key subdataWithRange:keyrange];
+            key         = [key gunzippedData];
+            keyrange    = NSMakeRange(0, [key length]);
         }
         
 //            NSData* key     = [NSData dataWithBytesNoCopy:kbuf length:klen];
         
+//        NSLog(@"value offset %llu", (unsigned long long)offset);
         [data getBytes:&vflags range:NSMakeRange(offset, 1)];
+//        NSLog(@"ok");
         offset++;
         
         [data getBytes:&bigvlen range:NSMakeRange(offset, 4)];
@@ -249,12 +269,12 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
         unsigned short vlen = NSSwapBigIntToHost(bigvlen);
 //            char* vbuf      = malloc(vlen);
 //            [data getBytes:vbuf range:NSMakeRange(offset, vlen)];
-        NSData* value   = [data subdataWithRange:NSMakeRange(offset, vlen)];
+//        NSData* value   = [data subdataWithRange:NSMakeRange(offset, vlen)];
+        NSData* value       = [data copy];
+        NSRange valrange    = NSMakeRange(offset, vlen);
         offset  += vlen;
 //            NSData* value   = [NSData dataWithBytesNoCopy:vbuf length:vlen];
         
-        NSRange keyrange    = NSMakeRange(0, key.length);
-        NSRange valrange    = NSMakeRange(0, value.length);
         block(key, keyrange, value, valrange, &stop);
         if (stop)
             break;
@@ -271,7 +291,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     
     if (!_stop) {
         if (self.previousPageID >= 0) {
-            GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+            GTWAOFRawDictionary* prev   = [self previousPage];
             [prev enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
                 block(key, obj, &_stop);
                 if (_stop)
@@ -387,6 +407,7 @@ NSData* newDictData( NSUInteger pageSize, NSMutableDictionary* dict, int64_t pre
 
         [data replaceBytesInRange:NSMakeRange(offset, 1) withBytes:&kflags];
         offset++;
+//        NSLog(@"writing key length %llu at offset %llu", (unsigned long long)klen, (unsigned long long)offset);
         [data replaceBytesInRange:NSMakeRange(offset, 4) withBytes:&bigklen];
         offset  += 4;
         [data replaceBytesInRange:NSMakeRange(offset, klen) withBytes:[key bytes]];

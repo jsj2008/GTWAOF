@@ -19,6 +19,7 @@
     NSDictionary* _revPageDict;
     NSCache* _cache;
     NSCache* _revCache;
+    id _prevPage;
 }
 
 @property BOOL verbose;
