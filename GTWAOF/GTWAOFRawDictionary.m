@@ -15,6 +15,7 @@
  */
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFUpdateContext.h"
+#import "GTWAOFRawValue.h"
 #import "GZIP.h"
 
 #define TS_OFFSET   8
@@ -25,7 +26,8 @@ static const BOOL SHOULD_COMPRESS_LONG_DATA   = YES;
 
 typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     GTWAOFDictionaryTermFlagSimple = 0,
-    GTWAOFDictionaryTermFlagCompressed
+    GTWAOFDictionaryTermFlagCompressed,
+    GTWAOFDictionaryTermFlagExtendedPage,
 };
 
 @implementation GTWAOFRawDictionary
@@ -311,8 +313,8 @@ NSMutableData* emptyDictData( NSUInteger pageSize, int64_t prevPageID, BOOL verb
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:RAW_DICT_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(8, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(16, 8) withBytes:&bigprev];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
     return data;
 }
 

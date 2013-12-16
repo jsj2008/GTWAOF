@@ -22,6 +22,7 @@
 #import <SPARQLKit/SPKNTriplesSerializer.h>
 #import "GTWAOFQuadStore.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+#import "GTWAOFRawValue.h"
 
 double current_time ( void ) {
 	struct timeval t;
@@ -117,7 +118,7 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     NSData* data    = p.data;
     char cookie[5] = { 0,0,0,0,0 };
     [data getBytes:cookie length:4];
-    NSDictionary* names = @{@"RDCT": @"Raw Dictionary", @"RQDS": @"Raw Quads"};
+    NSDictionary* names = @{@"RDCT": @"Raw Dictionary", @"RQDS": @"Raw Quads", @"RVAL": @"Raw Value"};
     NSString* c = [NSString stringWithFormat:@"%s", cookie];
     fprintf(stdout, "Page %-6lu\n", p.pageID);
     NSDate* modified    = [p lastModified];
@@ -133,6 +134,9 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     if ([c isEqualToString:@"RDCT"]) {
 //        GTWAOFRawDictionary* obj    = [[GTWAOFRawDictionary alloc] initWithPage:p fromAOF:aof];
         
+    } else if ([c isEqualToString:@"RVAL"]) {
+        GTWAOFRawValue* obj         = [[GTWAOFRawValue alloc] initWithPage:p fromAOF:aof];
+        fprintf(stdout, "    Length        : %lld (%lld in page)\n", (long long)[obj length], (long long)[obj pageLength]);
     } else if ([c isEqualToString:@"RQDS"]) {
         GTWAOFRawQuads* obj         = [[GTWAOFRawQuads alloc] initWithPage:p fromAOF:aof];
         NSUInteger count            = [obj count];
@@ -148,6 +152,8 @@ int main(int argc, const char * argv[]) {
         fprintf(stdout, "    %s dict\n", argv[0]);
         fprintf(stdout, "    %s adddict key=val ...\n", argv[0]);
         fprintf(stdout, "    %s mkdict key=val ...\n", argv[0]);
+        fprintf(stdout, "    %s mkvalue val\n", argv[0]);
+        fprintf(stdout, "    %s value pageID\n", argv[0]);
         fprintf(stdout, "    %s term ID ...\n", argv[0]);
         fprintf(stdout, "    %s quads\n", argv[0]);
         fprintf(stdout, "    %s addquads s:p:o:g ...\n", argv[0]);
@@ -211,6 +217,16 @@ int main(int argc, const char * argv[]) {
         
         NSLog(@"appending dictionary: %@", dict);
         [d dictionaryByAddingDictionary:dict];
+    } else if (!strcmp(op, "value")) {
+        long long pageID    = atoll(argv[2]);
+        GTWAOFRawValue* v   = [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
+        NSData* data        = [v data];
+        NSString* s         = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        fprintf(stdout, "%s\n", [s UTF8String]);
+    } else if (!strcmp(op, "mkvalue")) {
+        NSString* s     = [NSString stringWithFormat:@"%s", argv[2]];
+        NSData* data    = [s dataUsingEncoding:NSUTF8StringEncoding];
+        [GTWAOFRawValue valueWithData:data aof:aof];
     } else if (!strcmp(op, "mkdict")) {
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
         for (int i = 2; i < argc; i++) {
