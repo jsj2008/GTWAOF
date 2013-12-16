@@ -12,6 +12,8 @@
 #import <GTWSWBase/GTWVariable.h>
 #import <SPARQLKit/SPKNTriplesSerializer.h>
 
+#define BULK_LOADING_BATCH_SIZE 4080
+
 static id<GTWTerm> termFromData(NSCache* cache, SPKTurtleParser* p, NSData* data) {
     id<GTWTerm> term    = [cache objectForKey:data];
     if (term)
@@ -255,8 +257,7 @@ static NSUInteger integerFromData(NSData* data) {
 - (BOOL) addQuad: (id<GTWQuad>) q error:(NSError *__autoreleasing*)error {
     if (_bulkLoading) {
         [_bulkQuads addObject:q];
-        if ([_bulkQuads count] >= 4080) {
-            //        if ([_bulkQuads count] >= 1) {  // TODO: this limits pages to 1 quad during bulk loading
+        if ([_bulkQuads count] >= BULK_LOADING_BATCH_SIZE) {
             if (self.verbose)
                 NSLog(@"Flushing %llu quads", (unsigned long long)[_bulkQuads count]);
             [self endBulkLoad];
