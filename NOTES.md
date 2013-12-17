@@ -12,10 +12,15 @@ Dictionary pages
 *	DATA
 ```
 
-The `DATA` field contains a list of key-value pairs encoded as follows:
+The `DATA` field contains a list of key-value pairs. The first byte of each pair indicates its encoding.
 
 ```
 1	key flags			
+```
+
+If the key flags byte does not have the `GTWAOFDictionaryTermFlagExtendedPagePair` bit set, the pair is stored inline as follows:
+
+```
 4	(kl) key length		
 kl	key bytes			
 1	value flags			
@@ -23,10 +28,20 @@ kl	key bytes
 vl	value bytes			
 ```
 
+If the key flags byte has the `GTWAOFDictionaryTermFlagExtendedPagePair` bit set, then the pair is stored encoded in a Value page (described below). The value page ID is encoded following the key flags:
+
+```
+4	(kl) key length		(the integer 8, stored as a big-endian integer)
+8	page_id				(the page number of the Value page storing the packed pair, stored as a big-endian integer)
+```
+
+The data stored in the value page(s) pointed to by `page_id` will be packed using the same structure described above.
+That is, it will encode the values for `key  flags`, `key length`, `key bytes`, `value flags`, `value length`, and `value bytes`.
+
 The key and value flags bytes are defined by the `GTWAOFDictionaryTermFlag` enum, and allow indicating how the bytes field is to be interpreted.
 
 * GTWAOFDictionaryTermFlagCompressed indicates that the bytes are gzip compressed.
-* GTWAOFDictionaryTermFlagExtendedPage indicates that the bytes represent a (big-endian encoded) page number of a Value page.
+* GTWAOFDictionaryTermFlagExtendedPagePair indicates that the pair is encoded in a separate values page (as described above).
 
 Quads pages
 -----------

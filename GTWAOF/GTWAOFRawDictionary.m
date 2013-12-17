@@ -28,7 +28,7 @@ static const BOOL SHOULD_COMPRESS_LONG_DATA   = YES;
 typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     GTWAOFDictionaryTermFlagSimple = 0,
     GTWAOFDictionaryTermFlagCompressed,
-    GTWAOFDictionaryTermFlagExtendedPage,
+    GTWAOFDictionaryTermFlagExtendedPagePair,
 };
 
 @implementation GTWAOFRawDictionary
@@ -40,7 +40,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     int64_t prev  = -1;
     if ([d count]) {
         while ([d count]) {
-            NSData* data    = newDictData([ctx pageSize], d, prev, NO);
+            NSData* data    = newDictData(ctx, d, prev, NO);
             if(!data)
                 return NO;
             page    = [ctx createPageWithData:data];
@@ -74,7 +74,12 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
         int64_t prev  = self.pageID;
         if ([d count]) {
             while ([d count]) {
-                NSData* data    = newDictData(pageSize, d, prev, self.verbose);
+                NSUInteger lastCount    = [d count];
+                NSData* data    = newDictData(ctx, d, prev, self.verbose);
+                if (lastCount == [d count]) {
+                    NSLog(@"Failed to encode any dictionary terms in page creation loop");
+                    return NO;
+                }
                 if(!data)
                     return NO;
                 page    = [ctx createPageWithData:data];
@@ -235,69 +240,110 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return nil;
 }
 
++ (NSUInteger) decodeDataPair:(NSData*)pair location:(NSUInteger)location usingBlock:(void (^)(NSData* key, NSRange keyrange, NSData* obj, NSRange objrange, BOOL *stop))block{
+    int offset      = (int) location;
+    NSData* data    = pair;
+    uint32_t bigklen, bigvlen;
+    char kflags, vflags;
+    
+    [data getBytes:&kflags range:NSMakeRange(offset, 1)];
+    //        NSLog(@"ok");
+    offset++;
+    
+    [data getBytes:&bigklen range:NSMakeRange(offset, 4)];
+    offset  += 4;
+    uint32_t klen = (uint32_t) NSSwapBigIntToHost(bigklen);
+    //        NSLog(@"decoding key of length %llu\n", (unsigned long long)klen);
+    
+    if (!klen)
+        return 0;
+//    NSLog(@"key flag: %x", (int) kflags);
+    
+    //            char* kbuf      = malloc(klen);
+    //            [data getBytes:kbuf range:NSMakeRange(offset, klen)];
+    //        NSData* key     = [data subdataWithRange:NSMakeRange(offset, klen)];
+    NSData* key         = [data copy];
+    NSRange keyrange    = NSMakeRange(offset, klen);
+    offset  += klen;
+    
+    if (kflags & GTWAOFDictionaryTermFlagCompressed) {
+        key         = [key subdataWithRange:keyrange];
+        key         = [key gunzippedData];
+        keyrange    = NSMakeRange(0, [key length]);
+    }
+    
+    //            NSData* key     = [NSData dataWithBytesNoCopy:kbuf length:klen];
+    
+    //        NSLog(@"value offset %llu", (unsigned long long)offset);
+    [data getBytes:&vflags range:NSMakeRange(offset, 1)];
+    //        NSLog(@"ok");
+    offset++;
+    
+    [data getBytes:&bigvlen range:NSMakeRange(offset, 4)];
+    offset  += 4;
+    
+    unsigned short vlen = NSSwapBigIntToHost(bigvlen);
+    //            char* vbuf      = malloc(vlen);
+    //            [data getBytes:vbuf range:NSMakeRange(offset, vlen)];
+    //        NSData* value   = [data subdataWithRange:NSMakeRange(offset, vlen)];
+    NSData* value       = [data copy];
+    NSRange valrange    = NSMakeRange(offset, vlen);
+    offset  += vlen;
+    //            NSData* value   = [NSData dataWithBytesNoCopy:vbuf length:vlen];
+    
+    BOOL stop   = NO;
+    block(key, keyrange, value, valrange, &stop);
+    if (stop)
+        return 0;
+    return (offset - location);
+}
+
 + (void)enumerateDataPairsForPage:(GTWAOFPage*) p fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange keyrange, NSData* obj, NSRange objrange, BOOL *stop))block {
-//        NSLog(@"Dictionary Page: %lu", d.pageID);
-//        NSLog(@"Dictionary Page Last-Modified: %@", [d lastModified]);
+//    NSLog(@"Dictionary Page: %lu", p.pageID);
     NSData* data    = p.data;
     
     int offset      = DATA_OFFSET;
-    uint32_t bigklen, bigvlen;
-    
-    BOOL stop   = NO;
-    
     while (offset < (aof.pageSize-10)) {
-        char kflags, vflags;
+        char kflags;
 
 //        NSLog(@"key offset %llu", (unsigned long long)offset);
         [data getBytes:&kflags range:NSMakeRange(offset, 1)];
 //        NSLog(@"ok");
-        offset++;
         
-//        NSLog(@"key flag: %x", (int) kflags);
-        
-        [data getBytes:&bigklen range:NSMakeRange(offset, 4)];
-        offset  += 4;
-        
-        uint32_t klen = (uint32_t) NSSwapBigIntToHost(bigklen);
-//        NSLog(@"decoding key of length %llu\n", (unsigned long long)klen);
-        
-        if (!klen)
-            break;
-//            char* kbuf      = malloc(klen);
-//            [data getBytes:kbuf range:NSMakeRange(offset, klen)];
-//        NSData* key     = [data subdataWithRange:NSMakeRange(offset, klen)];
-        NSData* key         = [data copy];
-        NSRange keyrange    = NSMakeRange(offset, klen);
-        offset  += klen;
-        
-        if (kflags & GTWAOFDictionaryTermFlagCompressed) {
-            key         = [key subdataWithRange:keyrange];
-            key         = [key gunzippedData];
-            keyrange    = NSMakeRange(0, [key length]);
+        if (kflags & GTWAOFDictionaryTermFlagExtendedPagePair) {
+            offset++;       // skip past the kflags byte
+            uint32_t bigklen;
+            [data getBytes:&bigklen range:NSMakeRange(offset, 4)];
+            offset  += 4;   // skip past the klen int
+            uint32_t klen = (uint32_t) NSSwapBigIntToHost(bigklen);
+//            NSLog(@"decoding key of length %llu\n", (unsigned long long)klen);
+            
+            if (!klen)
+                break;
+            
+            if (klen != 8) {
+                NSLog(@"Unexpected page ID length (%"PRIu32") when looking for extended page", klen);
+                break;
+            }
+            uint64_t big_pageID = 0;
+            [data getBytes:&big_pageID range:NSMakeRange(offset, klen)];
+            offset  += klen;
+            unsigned long long pageID = NSSwapBigLongLongToHost((unsigned long long) big_pageID);
+//            NSLog(@"found extended page dictionary pair (on page %llu)", (unsigned long long)pageID);
+            GTWAOFRawValue* v   = [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
+            NSData* pair        = [v data];
+            NSUInteger read     = [self decodeDataPair:pair location:0 usingBlock:block];
+//            NSLog(@"read %llu bytes from extended page(s)", (unsigned long long) read);
+            if (read == 0)
+                break;
+            
+        } else {
+            NSUInteger read     = [self decodeDataPair:data location:offset usingBlock:block];
+//            NSLog(@"read %llu bytes from dictionary page", (unsigned long long) read);
+            if (read == 0)
+                break;
+            offset              += read;
         }
-        
-//            NSData* key     = [NSData dataWithBytesNoCopy:kbuf length:klen];
-        
-//        NSLog(@"value offset %llu", (unsigned long long)offset);
-        [data getBytes:&vflags range:NSMakeRange(offset, 1)];
-//        NSLog(@"ok");
-        offset++;
-        
-        [data getBytes:&bigvlen range:NSMakeRange(offset, 4)];
-        offset  += 4;
-        
-        unsigned short vlen = NSSwapBigIntToHost(bigvlen);
-//            char* vbuf      = malloc(vlen);
-//            [data getBytes:vbuf range:NSMakeRange(offset, vlen)];
-//        NSData* value   = [data subdataWithRange:NSMakeRange(offset, vlen)];
-        NSData* value       = [data copy];
-        NSRange valrange    = NSMakeRange(offset, vlen);
-        offset  += vlen;
-//            NSData* value   = [NSData dataWithBytesNoCopy:vbuf length:vlen];
-        
-        block(key, keyrange, value, valrange, &stop);
-        if (stop)
-            break;
     }
 }
 
@@ -339,14 +385,51 @@ NSMutableData* emptyDictData( NSUInteger pageSize, int64_t prevPageID, BOOL verb
     return data;
 }
 
-NSData* newDictData( NSUInteger pageSize, NSMutableDictionary* dict, int64_t prevPageID, BOOL verbose ) {
+static NSData* packedDataForPair( NSData* key, char kflags, NSData* val, char vflags ) {
+    NSMutableData* data = [NSMutableData data];
+    uint32_t klen       = (uint32_t) [key length];
+    uint32_t vlen       = (uint32_t) [val length];
+    uint32_t bigklen    = NSSwapHostIntToBig(klen);
+    uint32_t bigvlen    = NSSwapHostIntToBig(vlen);
+    
+    [data appendBytes:&kflags length:1];
+    [data appendBytes:&bigklen length:4];
+    [data appendBytes:[key bytes] length:klen];
+    
+    [data appendBytes:&vflags length:1];
+    [data appendBytes:&bigvlen length:4];
+    [data appendBytes:[val bytes] length:vlen];
+    
+    return data;
+}
+
+static NSData* packedDataForExtendedPagePair( GTWAOFPage* p ) {
+    NSMutableData* data = [NSMutableData data];
+    uint32_t klen       = 8;
+    uint32_t bigklen    = NSSwapHostIntToBig(klen);
+    int64_t pageID      = (int64_t) p.pageID;
+    int64_t bigpageID   = NSSwapHostLongLongToBig(pageID);
+    char kflags         = GTWAOFDictionaryTermFlagExtendedPagePair;
+    
+    [data appendBytes:&kflags length:1];
+    [data appendBytes:&bigklen length:4];
+    [data appendBytes:&bigpageID length:8];
+    
+    return data;
+}
+
+NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_t prevPageID, BOOL verbose ) {
+    NSUInteger pageSize = [ctx pageSize];
     NSMutableData* data = emptyDictData(pageSize, prevPageID, verbose);
-    __block int offset  = DATA_OFFSET;
-    NSArray* keys   = [[dict keyEnumerator] allObjects];
-    NSMutableSet* setKeys   = [NSMutableSet set];
-    int tmp_offset  = offset;
+    NSArray* keys       = [[dict keyEnumerator] allObjects];
 //    NSLog(@"attempting to pack %llu keys", (unsigned long long)[keys count]);
     static NSInteger saved = 0;
+    
+    if ([keys count] == 0) {
+        return data;
+    }
+    
+    NSMutableDictionary* packedData = [NSMutableDictionary dictionary];
     for (NSData* k in keys) {
         NSData* key = k;
         id val              = dict[key];
@@ -359,119 +442,64 @@ NSData* newDictData( NSUInteger pageSize, NSMutableDictionary* dict, int64_t pre
             return nil;
         }
         
+        char kflags = GTWAOFDictionaryTermFlagSimple;
+        char vflags = GTWAOFDictionaryTermFlagSimple;
+        
         uint32_t klen   = (uint32_t) [key length];
-        uint32_t vlen   = (uint32_t) [val length];
+//        uint32_t vlen   = (uint32_t) [val length];
+
+        
+        
         if (SHOULD_COMPRESS_LONG_DATA) {
             if (klen > GZIP_TERM_LENGTH_THRESHOLD) {
                 NSData* gzkey   = [key gzippedData];
                 klen            = (uint32_t) [gzkey length];
                 saved           += ([key length] - [gzkey length]);
-    //            NSLog(@"would save %lld bytes in gzipping (%d)", (long long)([key length] - [gzkey length]), GTWAOFDictionaryTermFlagCompressed);
+                key             = gzkey;
+                klen            = (uint32_t) [gzkey length];
+                kflags          |= GTWAOFDictionaryTermFlagCompressed;
+                //            NSLog(@"would save %lld bytes in gzipping (%d)", (long long)([key length] - [gzkey length]), GTWAOFDictionaryTermFlagCompressed);
             }
         }
         
-        size_t len          = klen + vlen + 5 + 5;
-        if (tmp_offset+len < pageSize) {
-            tmp_offset  += len;
-            [setKeys addObject:key];
-            int remaining   = (int) (pageSize-tmp_offset);
-            if (verbose)
-                NSLog(@"packed size is %d (+%d; %d remaining)", tmp_offset, (int) len, remaining);
-            if (remaining < 22) {
-                if (verbose)
-                    NSLog(@"Not enough remaining room in page (%d)", remaining);
-                break;
-            }
-        } else {
-            if (verbose) {
-                int remaining   = (int) (pageSize-tmp_offset);
-                NSLog(@"skipping item of size %d (too big for packed size %d; %d remaining)", (int) len, tmp_offset, remaining);
-            }
+        NSData* packed  = packedDataForPair(key, kflags, val, vflags);
+        if ([packed length] > ([ctx pageSize] - DATA_OFFSET)) {
+            GTWAOFPage* p   = [GTWAOFRawValue valuePageWithData:packed updateContext:ctx];
+            packed          = packedDataForExtendedPagePair(p);
         }
-    }
-    if (SHOULD_COMPRESS_LONG_DATA) {
-//        NSLog(@"saved %lld bytes by gzipping", (long long)saved);
+        
+        [packedData setObject:packed forKey:k];
     }
     
-    NSArray* sortedKeys   = [[setKeys allObjects] sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
-        int r   = memcmp([obj1 bytes], [obj2 bytes], 32);
-        if (r < 0) {
-            return NSOrderedAscending;
-        } else if (r > 0) {
-            return NSOrderedDescending;
-        } else {
-            return NSOrderedSame;
-        }
-    }];
-    
-//    NSArray* sortedKeys = [[setKeys allObjects] sortedArrayUsingSelector:@selector(compare:)];
-    int64_t count       = 0;
-    for (NSData* k in sortedKeys) {
-        count++;
-        NSData* key = k;
-        NSData* val = dict[key];
-        char kflags = GTWAOFDictionaryTermFlagSimple;
-        char vflags = GTWAOFDictionaryTermFlagSimple;
-        uint32_t klen   = (uint32_t) [key length];
-        uint32_t vlen   = (uint32_t) [val length];
-        
-        if (SHOULD_COMPRESS_LONG_DATA) {
-            if (klen > GZIP_TERM_LENGTH_THRESHOLD) {
-                NSData* gzkey       = [key gzippedData];
-                if (gzkey) {
-                    key     = gzkey;
-                    klen    = (uint32_t) [gzkey length];
-                    kflags  = GTWAOFDictionaryTermFlagCompressed;
-                }
-            }
-        }
-        
-//        NSLog(@"encoding key of length %llu\n", (unsigned long long)klen);
-        uint32_t bigklen    = NSSwapHostIntToBig(klen);
-        uint32_t bigvlen    = NSSwapHostIntToBig(vlen);
+//    NSLog(@"packed data pairs: %@", packedData);
 
-        [data replaceBytesInRange:NSMakeRange(offset, 1) withBytes:&kflags];
-        offset++;
-//        NSLog(@"writing key length %llu at offset %llu", (unsigned long long)klen, (unsigned long long)offset);
-        [data replaceBytesInRange:NSMakeRange(offset, 4) withBytes:&bigklen];
-        offset  += 4;
-        [data replaceBytesInRange:NSMakeRange(offset, klen) withBytes:[key bytes]];
-        offset  += klen;
-        
-        [data replaceBytesInRange:NSMakeRange(offset, 1) withBytes:&vflags];
-        offset++;
-        [data replaceBytesInRange:NSMakeRange(offset, 4) withBytes:&bigvlen];
-        offset  += 4;
-        [data replaceBytesInRange:NSMakeRange(offset, vlen) withBytes:[val bytes]];
-        offset  += vlen;
-        [dict removeObjectForKey:k];
-        [setKeys addObject:k];
-        [dict removeObjectForKey:k];
+    if (verbose && SHOULD_COMPRESS_LONG_DATA) {
+        NSLog(@"saved %lld bytes by gzipping", (long long)saved);
     }
-    if ([setKeys count] == 0) {
-        NSLog(@"dictionary data is too large for database page");
-        NSData* maxkey  = nil;
-        uint32_t maxlen = 0;
-        for (NSData* key in dict) {
-            uint32_t klen   = (uint32_t) [key length];
-            uint32_t vlen   = (uint32_t) [dict[key] length];
-            uint32_t len    = klen + vlen;
-            if (maxlen < len) {
-                maxlen  = len;
-                maxkey  = key;
-            }
-            // TODO: this isn't a great solution to dealing with data that won't fit into a page
-            NSLog(@"*** Removing entry of length (%llu): %@ -> %@", (unsigned long long) maxlen, maxkey, dict[maxkey]);
-            [dict removeObjectForKey:maxkey];
+    
+    int64_t count   = 0;
+    NSMutableSet* handled   = [NSMutableSet set];
+    NSUInteger offset       = DATA_OFFSET;
+    for (NSData* key in packedData) {
+        NSData* packed  = packedData[key];
+        count++;
+        NSUInteger length = [packed length];
+        if ((offset + length) > pageSize) {
+            break;
         }
-        return data;
+        
+//        NSLog(@"{ %llu, %llu } %@", (unsigned long long)offset, (unsigned long long)length, packed);
+        [data replaceBytesInRange:NSMakeRange(offset, length) withBytes:[packed bytes]];
+        offset  += length;
+        [handled addObject:packed];
+        [dict removeObjectForKey:key];
     }
     
     int64_t bigcount    = NSSwapHostLongLongToBig(count);
     [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
     
     if ([data length] != pageSize) {
-        NSLog(@"page has bad size (%llu) for keys: %@", (unsigned long long) [data length], setKeys);
+        NSLog(@"page has bad size (%llu) for keys: %@", (unsigned long long) [data length], handled);
         return nil;
     }
     return data;
