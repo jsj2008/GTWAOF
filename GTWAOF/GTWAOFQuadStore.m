@@ -37,12 +37,6 @@ static id<GTWTerm> termFromData(NSCache* cache, SPKTurtleParser* p, NSData* data
     return term;
 }
 
-static NSData* dataFromTerm(id<GTWTerm> t) {
-    NSString* str               = [SPKNTriplesSerializer nTriplesEncodingOfTerm:t];
-    NSData* data                = [str dataUsingEncoding:NSUTF8StringEncoding];
-    return data;
-}
-
 static NSData* dataFromInteger(NSUInteger value) {
     long long n = (long long) value;
     long long bign  = NSSwapHostLongLongToBig(n);
@@ -59,6 +53,17 @@ static NSUInteger integerFromData(NSData* data) {
 
 
 @implementation GTWAOFQuadStore
+
+- (NSData*) dataFromTerm: (id<GTWTerm>) t {
+    NSData* data    = [_termCache objectForKey:t];
+    if (data)
+        return data;
+    
+    NSString* str   = [SPKNTriplesSerializer nTriplesEncodingOfTerm:t escapingUnicode:NO];
+    data            = [str dataUsingEncoding:NSUTF8StringEncoding];
+    [_termCache setObject:data forKey:t];
+    return data;
+}
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
@@ -80,6 +85,13 @@ static NSUInteger integerFromData(NSData* data) {
     return self;
 }
 
+- (instancetype) init {
+    if (self = [super init]) {
+        _termCache  = [[NSCache alloc] init];
+        [_termCache setCountLimit:64];
+    }
+    return self;
+}
 - (NSArray*) getGraphsWithError:(NSError *__autoreleasing*)error {
     NSMutableSet* graphs    = [NSMutableSet set];
     BOOL ok                 = [self enumerateGraphsUsingBlock:^(id<GTWTerm> g) {
@@ -231,7 +243,7 @@ static NSUInteger integerFromData(NSData* data) {
 - (NSData*) dataFromQuad: (id<GTWQuad>) q {
     NSMutableData* quadData     = [NSMutableData data];
     for (id<GTWTerm> t in [q allValues]) {
-        NSData* termData    = dataFromTerm(t);
+        NSData* termData    = [self dataFromTerm: t];
         NSData* ident   = [_dict objectForKey:termData];
         if (!ident) {
             //            NSLog(@"No ID found for term %@", t);
@@ -269,7 +281,7 @@ static NSUInteger integerFromData(NSData* data) {
     NSMutableDictionary* map    = [NSMutableDictionary dictionary];
     NSMutableData* quadData     = [NSMutableData data];
     for (id<GTWTerm> t in [q allValues]) {
-        NSData* termData    = dataFromTerm(t);
+        NSData* termData    = [self dataFromTerm:t];
         NSData* ident       = map[termData];
         if (!ident) {
             ident           = [_dict objectForKey:termData];
@@ -297,7 +309,7 @@ static NSUInteger integerFromData(NSData* data) {
     for (id<GTWQuad> q in quads) {
         NSMutableData* quadData = [NSMutableData data];
         for (id<GTWTerm> t in [q allValues]) {
-            NSData* termData    = dataFromTerm(t);
+            NSData* termData    = [self dataFromTerm:t];
             NSData* ident       = map[termData];
             if (!ident) {
                 ident           = [_dict objectForKey:termData];

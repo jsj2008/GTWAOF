@@ -17,6 +17,7 @@
     id<GTWAOF> _aof;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
+    NSCache* _termCache;
 }
 
 @property BOOL verbose;
