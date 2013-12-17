@@ -24,7 +24,7 @@
 
 @implementation GTWAOFRawQuads
 
-+ (GTWAOFRawQuads*) quadsWithQuads:(NSArray *)quads aof:(id<GTWAOF>)_aof {
++ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx {
     NSMutableArray* q   = [[quads sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
         int r   = memcmp([obj1 bytes], [obj2 bytes], 32);
         if (r < 0) {
@@ -35,22 +35,30 @@
             return NSOrderedSame;
         }
     }] mutableCopy];
+    
+    GTWAOFPage* page;
+    int64_t prev  = prevID;
+    if ([q count]) {
+        while ([q count]) {
+            //                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
+            NSData* data    = newQuadsData([ctx pageSize], q, prev, NO);
+            if(!data)
+                return NO;
+            page    = [ctx createPageWithData:data];
+            prev    = page.pageID;
+        }
+    } else {
+        NSData* empty   = emptyQuadsData([ctx pageSize], prev, NO);
+        page            = [ctx createPageWithData:empty];
+    }
+    
+    return page;
+}
+
++ (GTWAOFRawQuads*) quadsWithQuads:(NSArray *)quads aof:(id<GTWAOF>)_aof {
     __block GTWAOFPage* page;
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        int64_t prev  = -1;
-        if ([q count]) {
-            while ([q count]) {
-//                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
-                NSData* data    = newQuadsData([_aof pageSize], q, prev, NO);
-                if(!data)
-                    return NO;
-                page    = [ctx createPageWithData:data];
-                prev    = page.pageID;
-            }
-        } else {
-            NSData* empty   = emptyQuadsData([_aof pageSize], prev, NO);
-            page            = [ctx createPageWithData:empty];
-        }
+        page    = [GTWAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
         return YES;
     }];
     if (!ok)
@@ -60,33 +68,10 @@
 }
 
 - (GTWAOFRawQuads*) quadsByAddingQuads:(NSArray*) quads {
-    NSMutableArray* q   = [[quads sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
-        int r   = memcmp([obj1 bytes], [obj2 bytes], 32);
-        if (r < 0) {
-            return NSOrderedAscending;
-        } else if (r > 0) {
-            return NSOrderedDescending;
-        } else {
-            return NSOrderedSame;
-        }
-    }] mutableCopy];
     __block GTWAOFPage* page;
-    NSUInteger pageSize = [_aof pageSize];
+    int64_t prev  = self.pageID;
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        int64_t prev  = self.pageID;
-        if ([q count]) {
-            while ([q count]) {
-//                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
-                NSData* data    = newQuadsData(pageSize, q, prev, self.verbose);
-                if(!data)
-                    return NO;
-                page    = [ctx createPageWithData:data];
-                prev    = page.pageID;
-            }
-        } else {
-            NSData* empty   = emptyQuadsData(pageSize, prev, self.verbose);
-            page            = [ctx createPageWithData:empty];
-        }
+        page    = [GTWAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
         return YES;
     }];
     if (!ok)

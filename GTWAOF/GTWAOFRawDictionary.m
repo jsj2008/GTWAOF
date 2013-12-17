@@ -18,9 +18,10 @@
 #import "GTWAOFRawValue.h"
 #import "GZIP.h"
 
-#define TS_OFFSET   8
-#define PREV_OFFSET 16
-#define DATA_OFFSET 24
+#define TS_OFFSET       8
+#define PREV_OFFSET     16
+#define COUNT_OFFSET    24
+#define DATA_OFFSET     32
 #define GZIP_TERM_LENGTH_THRESHOLD 100
 static const BOOL SHOULD_COMPRESS_LONG_DATA   = YES;
 
@@ -32,23 +33,31 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 @implementation GTWAOFRawDictionary
 
-+ (GTWAOFRawDictionary*) dictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)_aof {
++ (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx {
     NSMutableDictionary* d  = [dict mutableCopy];
+    GTWAOFPage* page;
+
+    int64_t prev  = -1;
+    if ([d count]) {
+        while ([d count]) {
+            NSData* data    = newDictData([ctx pageSize], d, prev, NO);
+            if(!data)
+                return NO;
+            page    = [ctx createPageWithData:data];
+            prev    = page.pageID;
+        }
+    } else {
+        NSData* empty   = emptyDictData([ctx pageSize], prev, NO);
+        page            = [ctx createPageWithData:empty];
+    }
+    
+    return page;
+}
+
++ (GTWAOFRawDictionary*) dictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)_aof {
     __block GTWAOFPage* page;
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        int64_t prev  = -1;
-        if ([d count]) {
-            while ([d count]) {
-                NSData* data    = newDictData([_aof pageSize], d, prev, NO);
-                if(!data)
-                    return NO;
-                page    = [ctx createPageWithData:data];
-                prev    = page.pageID;
-            }
-        } else {
-            NSData* empty   = emptyDictData([_aof pageSize], prev, NO);
-            page            = [ctx createPageWithData:empty];
-        }
+        page    = [GTWAOFRawDictionary dictionaryPageWithDictionary:dict updateContext:ctx];
         return YES;
     }];
     if (!ok)
@@ -174,6 +183,15 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
     unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
+}
+
+- (NSUInteger) count {
+    GTWAOFPage* p       = _head;
+    NSData* data        = p.data;
+    uint64_t big_count  = 0;
+    [data getBytes:&big_count range:NSMakeRange(COUNT_OFFSET, 8)];
+    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
+    return (NSUInteger) count;
 }
 
 - (NSEnumerator*) keyEnumerator {
@@ -311,10 +329,13 @@ NSMutableData* emptyDictData( NSUInteger pageSize, int64_t prevPageID, BOOL verb
     uint64_t bigts  = NSSwapHostLongLongToBig(ts);
     int64_t bigprev = NSSwapHostLongLongToBig(prev);
     
+    int64_t bigcount    = 0;
+    
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:RAW_DICT_COOKIE];
     [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
     [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
     return data;
 }
 
@@ -384,7 +405,9 @@ NSData* newDictData( NSUInteger pageSize, NSMutableDictionary* dict, int64_t pre
     }];
     
 //    NSArray* sortedKeys = [[setKeys allObjects] sortedArrayUsingSelector:@selector(compare:)];
+    int64_t count       = 0;
     for (NSData* k in sortedKeys) {
+        count++;
         NSData* key = k;
         NSData* val = dict[key];
         char kflags = GTWAOFDictionaryTermFlagSimple;
@@ -443,6 +466,10 @@ NSData* newDictData( NSUInteger pageSize, NSMutableDictionary* dict, int64_t pre
         }
         return data;
     }
+    
+    int64_t bigcount    = NSSwapHostLongLongToBig(count);
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    
     if ([data length] != pageSize) {
         NSLog(@"page has bad size (%llu) for keys: %@", (unsigned long long) [data length], setKeys);
         return nil;

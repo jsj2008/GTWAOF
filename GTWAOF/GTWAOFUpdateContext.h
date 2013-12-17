@@ -17,6 +17,7 @@
 @property id<GTWAOF> aof;
 @property NSMutableArray* createdPages;
 
+- (NSUInteger) pageSize;
 - (GTWAOFUpdateContext*) initWithAOF: (id<GTWAOF>) aof;
 - (GTWAOFPage*) readPage: (NSInteger) pageID;
 - (GTWAOFPage*) createPageWithData: (NSData*)data;

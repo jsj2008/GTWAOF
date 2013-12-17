@@ -26,8 +26,10 @@
 
 + (GTWAOFRawDictionary*) dictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)aof;
 - (GTWAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
++ (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
 
 - (NSDate*) lastModified;
+- (NSUInteger) count;
 - (NSInteger) pageID;
 - (NSInteger) previousPageID;
 

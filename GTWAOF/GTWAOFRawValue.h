@@ -20,6 +20,7 @@
 @property NSData* data;
 
 + (GTWAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)aof;
++ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx;
 
 - (NSDate*) lastModified;
 - (NSInteger) pageID;

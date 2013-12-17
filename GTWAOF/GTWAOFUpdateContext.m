@@ -19,6 +19,10 @@
     return self;
 }
 
+- (NSUInteger) pageSize {
+    return [_aof pageSize];
+}
+
 - (GTWAOFPage*) readPage: (NSInteger) pageID {
     return [self.aof readPage:pageID];
 }

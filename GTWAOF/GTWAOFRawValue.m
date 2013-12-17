@@ -24,23 +24,30 @@
 
 @implementation GTWAOFRawValue
 
-+ (GTWAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)_aof {
++ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx {
     NSMutableData* d   = [data mutableCopy];
+    int64_t prev  = -1;
+    
+    GTWAOFPage* page;
+    if ([d length]) {
+        while ([d length]) {
+            NSData* pageData    = newValueData([ctx pageSize], d, prev, NO);
+            if(!pageData)
+                return NO;
+            page    = [ctx createPageWithData:pageData];
+            prev    = page.pageID;
+        }
+    } else {
+        NSData* empty   = emptyValueData([ctx pageSize], prev, NO);
+        page            = [ctx createPageWithData:empty];
+    }
+    return page;
+}
+
++ (GTWAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)_aof {
     __block GTWAOFPage* page;
     BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        int64_t prev  = -1;
-        if ([d length]) {
-            while ([d length]) {
-                NSData* pageData    = newValueData([_aof pageSize], d, prev, NO);
-                if(!pageData)
-                    return NO;
-                page    = [ctx createPageWithData:pageData];
-                prev    = page.pageID;
-            }
-        } else {
-            NSData* empty   = emptyValueData([_aof pageSize], prev, NO);
-            page            = [ctx createPageWithData:empty];
-        }
+        page    = [GTWAOFRawValue valuePageWithData:data updateContext:ctx];
         return YES;
     }];
     if (!ok)

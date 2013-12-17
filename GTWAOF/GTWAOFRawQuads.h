@@ -20,6 +20,7 @@
 
 + (GTWAOFRawQuads*) quadsWithQuads:(NSArray*) quads aof:(id<GTWAOF>)aof;
 - (GTWAOFRawQuads*) quadsByAddingQuads:(NSArray*) quads;
++ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx;
 
 - (NSDate*) lastModified;
 - (NSInteger) pageID;

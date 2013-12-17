@@ -132,8 +132,9 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     }
     
     if ([c isEqualToString:@"RDCT"]) {
-//        GTWAOFRawDictionary* obj    = [[GTWAOFRawDictionary alloc] initWithPage:p fromAOF:aof];
-        
+        GTWAOFRawDictionary* obj    = [[GTWAOFRawDictionary alloc] initWithPage:p fromAOF:aof];
+        NSUInteger count            = [obj count];
+        fprintf(stdout, "    Entries       : %lld\n", (long long)count);
     } else if ([c isEqualToString:@"RVAL"]) {
         GTWAOFRawValue* obj         = [[GTWAOFRawValue alloc] initWithPage:p fromAOF:aof];
         fprintf(stdout, "    Length        : %lld (%lld in page)\n", (long long)[obj length], (long long)[obj pageLength]);
