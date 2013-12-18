@@ -402,7 +402,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         
         NSData* packed  = packedDataForPair(key, kflags, val, vflags);
         if ([packed length] > ([ctx pageSize] - DATA_OFFSET)) {
-            GTWAOFPage* p   = [GTWAOFRawValue valuePageWithData:packed updateContext:ctx];
+            GTWAOFPage* p   = [GTWMutableAOFRawValue valuePageWithData:packed updateContext:ctx];
             packed          = packedDataForExtendedPagePair(p);
         }
         
@@ -536,7 +536,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         }
         
         if (!_head) {
-            NSLog(@"Failed to find a RawDictionary page in AOF file; creating an empty one");
+//            NSLog(@"Failed to find a RawDictionary page in AOF file; creating an empty one");
             return [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} aof:aof];
         }
         [self _loadEntries];

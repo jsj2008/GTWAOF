@@ -24,38 +24,6 @@
 
 @implementation GTWAOFRawValue
 
-+ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx {
-    NSMutableData* d   = [data mutableCopy];
-    int64_t prev  = -1;
-    
-    GTWAOFPage* page;
-    if ([d length]) {
-        while ([d length]) {
-            NSData* pageData    = newValueData([ctx pageSize], d, prev, NO);
-            if(!pageData)
-                return NO;
-            page    = [ctx createPageWithData:pageData];
-            prev    = page.pageID;
-        }
-    } else {
-        NSData* empty   = emptyValueData([ctx pageSize], prev, NO);
-        page            = [ctx createPageWithData:empty];
-    }
-    return page;
-}
-
-+ (GTWAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)_aof {
-    __block GTWAOFPage* page;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWAOFRawValue valuePageWithData:data updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
-    //    NSLog(@"new quads head: %@", page);
-    return [[GTWAOFRawValue alloc] initWithPage:page fromAOF:_aof];
-}
-
 - (void) _loadData {
     NSMutableData* data = [NSMutableData data];
     if ([self previousPageID] >= 0) {
@@ -199,12 +167,48 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
     [data replaceBytesInRange:NSMakeRange(offset, length) withBytes:bytes];
     NSData* tail    = [value subdataWithRange:NSMakeRange(length, [value length]-length)];
     [value setData:tail];
-    NSLog(@"New length of value data is %llu", (unsigned long long) [value length]);
+//    NSLog(@"New length of value data is %llu", (unsigned long long) [value length]);
     if ([data length] != pageSize) {
         NSLog(@"page has bad size for value");
         return nil;
     }
     return data;
+}
+
+@end
+
+@implementation GTWMutableAOFRawValue
+
++ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx {
+    NSMutableData* d   = [data mutableCopy];
+    int64_t prev  = -1;
+    
+    GTWAOFPage* page;
+    if ([d length]) {
+        while ([d length]) {
+            NSData* pageData    = newValueData([ctx pageSize], d, prev, NO);
+            if(!pageData)
+                return NO;
+            page    = [ctx createPageWithData:pageData];
+            prev    = page.pageID;
+        }
+    } else {
+        NSData* empty   = emptyValueData([ctx pageSize], prev, NO);
+        page            = [ctx createPageWithData:empty];
+    }
+    return page;
+}
+
++ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)_aof {
+    __block GTWAOFPage* page;
+    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        page    = [GTWMutableAOFRawValue valuePageWithData:data updateContext:ctx];
+        return YES;
+    }];
+    if (!ok)
+        return nil;
+    //    NSLog(@"new quads head: %@", page);
+    return [[GTWMutableAOFRawValue alloc] initWithPage:page fromAOF:_aof];
 }
 
 @end

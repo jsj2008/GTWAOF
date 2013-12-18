@@ -227,7 +227,7 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "mkvalue")) {
         NSString* s     = [NSString stringWithFormat:@"%s", argv[2]];
         NSData* data    = [s dataUsingEncoding:NSUTF8StringEncoding];
-        [GTWAOFRawValue valueWithData:data aof:aof];
+        [GTWMutableAOFRawValue valueWithData:data aof:aof];
     } else if (!strcmp(op, "mkdict")) {
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
         for (int i = 2; i < argc; i++) {

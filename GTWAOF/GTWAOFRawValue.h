@@ -19,9 +19,6 @@
 @property BOOL verbose;
 @property NSData* data;
 
-+ (GTWAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)aof;
-+ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx;
-
 - (NSDate*) lastModified;
 - (NSInteger) pageID;
 - (NSInteger) previousPageID;
@@ -32,5 +29,12 @@
 
 - (NSUInteger) length;
 - (NSUInteger) pageLength;
+
+@end
+
+@interface GTWMutableAOFRawValue : GTWAOFRawValue
+
++ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)aof;
++ (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
