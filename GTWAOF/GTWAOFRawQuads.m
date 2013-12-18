@@ -249,29 +249,16 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
     return page;
 }
 
-+ (GTWMutableAOFRawQuads*) quadsWithQuads:(NSArray *)quads aof:(id<GTWAOF>)_aof {
-    __block GTWAOFPage* page;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
-    //    NSLog(@"new quads head: %@", page);
-    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
++ (GTWMutableAOFRawQuads*) mutableQuadsWithQuads:(NSArray *)quads updateContext:(GTWAOFUpdateContext*) ctx {
+    GTWAOFPage* page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
+    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx.aof];
 }
 
-- (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads {
-    __block GTWAOFPage* page;
+- (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads updateContext:(GTWAOFUpdateContext*) ctx {
     int64_t prev  = self.pageID;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
+    GTWAOFPage* page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
     //    NSLog(@"new quads head: %@", page);
-    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
+    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx.aof];
 }
 
 - (GTWMutableAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof {
@@ -293,7 +280,12 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
         }
         
         if (!_head) {
-            return [GTWMutableAOFRawQuads quadsWithQuads:@[] aof:aof];
+            __block GTWMutableAOFRawQuads* q;
+            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                q   = [GTWMutableAOFRawQuads mutableQuadsWithQuads:@[] updateContext:ctx];
+                return YES;
+            }];
+            return q;
         }
     }
     return self;

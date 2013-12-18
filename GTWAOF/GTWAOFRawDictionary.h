@@ -42,7 +42,7 @@
 
 @interface GTWMutableAOFRawDictionary : GTWAOFRawDictionary
 
-+ (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)_aof;
++ (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx;
 - (GTWMutableAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
 + (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
 

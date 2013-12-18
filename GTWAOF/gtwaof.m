@@ -227,7 +227,10 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "mkvalue")) {
         NSString* s     = [NSString stringWithFormat:@"%s", argv[2]];
         NSData* data    = [s dataUsingEncoding:NSUTF8StringEncoding];
-        [GTWMutableAOFRawValue valueWithData:data aof:aof];
+        [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [GTWMutableAOFRawValue valueWithData:data updateContext:ctx];
+            return YES;
+        }];
     } else if (!strcmp(op, "mkdict")) {
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
         for (int i = 2; i < argc; i++) {
@@ -239,7 +242,10 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"creating dictionary: %@", dict);
-        [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:dict aof:aof];
+        [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:dict updateContext:ctx];
+            return YES;
+        }];
     } else if (!strcmp(op, "term")) {
         long long n     = atoll(argv[2]);
         long long bign  = NSSwapHostLongLongToBig(n);
@@ -285,7 +291,10 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"appending quads: %@", quads);
-        [q mutableQuadsByAddingQuads:quads];
+        [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [q mutableQuadsByAddingQuads:quads updateContext:ctx];
+            return YES;
+        }];
     } else if (!strcmp(op, "mkquads")) {
         NSMutableArray* quads   = [NSMutableArray array];
         for (int i = 2; i < argc; i++) {
@@ -305,7 +314,10 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"creating quads: %@", quads);
-        [GTWMutableAOFRawQuads quadsWithQuads:quads aof:aof];
+        [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [GTWMutableAOFRawQuads mutableQuadsWithQuads:quads updateContext:ctx];
+            return YES;
+        }];
     } else if (!strcmp(op, "export")) {
         GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
         if (!store) {
@@ -406,8 +418,11 @@ int main(int argc, const char * argv[]) {
                 }
                 [quads addObject:quadData];
             } error:nil];
-            [GTWMutableAOFRawQuads quadsWithQuads:quads aof:aof];
-            [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:map aof:aof];
+            [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                [GTWMutableAOFRawQuads mutableQuadsWithQuads:quads updateContext:ctx];
+                [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:map updateContext:ctx];
+                return YES;
+            }];
         } else {
             NSLog(@"Could not construct parser");
         }

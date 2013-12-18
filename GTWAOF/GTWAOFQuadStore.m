@@ -312,7 +312,14 @@ static NSUInteger integerFromData(NSData* data) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
         _dict           = _mutableDict;
     }
-    _mutableQuads   = [_mutableQuads mutableQuadsByAddingQuads:@[quadData]];
+    
+    __block GTWMutableAOFRawQuads* rawquads;
+    rawquads   = _mutableQuads;
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        rawquads   = [rawquads mutableQuadsByAddingQuads:@[quadData] updateContext:ctx];
+        return YES;
+    }];
+    _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
     return YES;
 }
@@ -340,7 +347,13 @@ static NSUInteger integerFromData(NSData* data) {
         [quadsData addObject:quadData];
     }
     //    NSLog(@"creating new quads head");
-    _mutableQuads   = [_mutableQuads mutableQuadsByAddingQuads:quadsData];
+    __block GTWMutableAOFRawQuads* rawquads;
+    rawquads   = _mutableQuads;
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+        return YES;
+    }];
+    _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
     if ([map count]) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
@@ -403,12 +416,18 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSInteger tailID                = quadsPage.previousPageID;
         //        NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
-        GTWMutableAOFRawQuads* rewrittenPage;
+        __block GTWMutableAOFRawQuads* rewrittenPage;
         if (tailID >= 0) {
             GTWMutableAOFRawQuads* quadsPageTail   = [[GTWMutableAOFRawQuads alloc] initWithPageID:quadsPage.previousPageID fromAOF:_aof];
-            rewrittenPage   = [quadsPageTail mutableQuadsByAddingQuads:quadsData];
+            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                rewrittenPage   = [quadsPageTail mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+                return YES;
+            }];
         } else {
-            rewrittenPage   = [GTWMutableAOFRawQuads quadsWithQuads:quadsData aof:_aof];
+            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                rewrittenPage   = [GTWMutableAOFRawQuads mutableQuadsWithQuads:quadsData updateContext:ctx];
+                return YES;
+            }];
         }
         
         tailID    = rewrittenPage.pageID;
@@ -427,7 +446,12 @@ static NSUInteger integerFromData(NSData* data) {
             } followTail:NO];
             
             //            NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
-            GTWMutableAOFRawQuads* rewrittenPage   = [_mutableQuads mutableQuadsByAddingQuads:quadsData];
+            __block GTWMutableAOFRawQuads* rewrittenPage;
+            GTWMutableAOFRawQuads* rawquads = _mutableQuads;
+            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                rewrittenPage   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+                return YES;
+            }];
             //            NSLog(@"-> new page ID: %lld", (long long)rewrittenPage.pageID);
             _mutableQuads   = rewrittenPage;
             _quads          = _mutableQuads;

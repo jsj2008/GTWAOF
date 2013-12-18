@@ -34,7 +34,7 @@
 
 @interface GTWMutableAOFRawValue : GTWAOFRawValue
 
-+ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)aof;
++ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx;
 
 @end

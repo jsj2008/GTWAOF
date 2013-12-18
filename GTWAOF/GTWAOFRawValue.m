@@ -199,16 +199,10 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
     return page;
 }
 
-+ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data aof:(id<GTWAOF>)_aof {
-    __block GTWAOFPage* page;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWMutableAOFRawValue valuePageWithData:data updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
++ (GTWMutableAOFRawValue*) valueWithData:(NSData*) data updateContext:(GTWAOFUpdateContext*) ctx {
+    GTWAOFPage* page    = [GTWMutableAOFRawValue valuePageWithData:data updateContext:ctx];
     //    NSLog(@"new quads head: %@", page);
-    return [[GTWMutableAOFRawValue alloc] initWithPage:page fromAOF:_aof];
+    return [[GTWMutableAOFRawValue alloc] initWithPage:page fromAOF:ctx.aof];
 }
 
 @end

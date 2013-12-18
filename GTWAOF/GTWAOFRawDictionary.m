@@ -469,21 +469,10 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return page;
 }
 
-//+ (GTWAOFRawDictionary*) dictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx {
-//    GTWAOFPage* page    = [GTWAOFRawDictionary dictionaryPageWithDictionary:dict updateContext:ctx];
-//    return [[GTWAOFRawDictionary alloc] initWithPage:page fromAOF:_aof];
-//}
-
-+ (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)_aof {
-    __block GTWAOFPage* page;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWMutableAOFRawDictionary dictionaryPageWithDictionary:dict updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
++ (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx; {
+    GTWAOFPage* page    = [GTWMutableAOFRawDictionary dictionaryPageWithDictionary:dict updateContext:ctx];
     //    NSLog(@"new dictionary head: %@", page);
-    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:_aof];
+    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx.aof];
 }
 
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict {
@@ -537,7 +526,12 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         
         if (!_head) {
 //            NSLog(@"Failed to find a RawDictionary page in AOF file; creating an empty one");
-            return [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} aof:aof];
+            __block GTWMutableAOFRawDictionary* dict;
+            [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                dict    = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} updateContext:ctx];
+                return YES;
+            }];
+            return dict;
         }
         [self _loadEntries];
     }
