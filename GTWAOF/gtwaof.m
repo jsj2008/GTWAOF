@@ -268,7 +268,7 @@ int main(int argc, const char * argv[]) {
             fprintf(stdout, "%s\n", [[tuple componentsJoinedByString:@":"] UTF8String]);
         }];
     } else if (!strcmp(op, "addquads")) {
-        GTWAOFRawQuads* q  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:aof];
+        GTWMutableAOFRawQuads* q  = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:aof];
         NSMutableArray* quads   = [NSMutableArray array];
         for (int i = 2; i < argc; i++) {
             NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
@@ -285,7 +285,7 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"appending quads: %@", quads);
-        [q quadsByAddingQuads:quads];
+        [q mutableQuadsByAddingQuads:quads];
     } else if (!strcmp(op, "mkquads")) {
         NSMutableArray* quads   = [NSMutableArray array];
         for (int i = 2; i < argc; i++) {
@@ -305,9 +305,13 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"creating quads: %@", quads);
-        [GTWAOFRawQuads quadsWithQuads:quads aof:aof];
+        [GTWMutableAOFRawQuads quadsWithQuads:quads aof:aof];
     } else if (!strcmp(op, "export")) {
         GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
+        if (!store) {
+            NSLog(@"Failed to create quad store object");
+            return 1;
+        }
         NSError* error;
         double start_export = current_time();
         [store enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:^(id<GTWQuad> q) {
@@ -402,7 +406,7 @@ int main(int argc, const char * argv[]) {
                 }
                 [quads addObject:quadData];
             } error:nil];
-            [GTWAOFRawQuads quadsWithQuads:quads aof:aof];
+            [GTWMutableAOFRawQuads quadsWithQuads:quads aof:aof];
             [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:map aof:aof];
         } else {
             NSLog(@"Could not construct parser");

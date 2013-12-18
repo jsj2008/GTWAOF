@@ -24,62 +24,6 @@
 
 @implementation GTWAOFRawQuads
 
-+ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx {
-    NSMutableArray* q   = [[quads sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
-        int r   = memcmp([obj1 bytes], [obj2 bytes], 32);
-        if (r < 0) {
-            return NSOrderedAscending;
-        } else if (r > 0) {
-            return NSOrderedDescending;
-        } else {
-            return NSOrderedSame;
-        }
-    }] mutableCopy];
-    
-    GTWAOFPage* page;
-    int64_t prev  = prevID;
-    if ([q count]) {
-        while ([q count]) {
-            //                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
-            NSData* data    = newQuadsData([ctx pageSize], q, prev, NO);
-            if(!data)
-                return NO;
-            page    = [ctx createPageWithData:data];
-            prev    = page.pageID;
-        }
-    } else {
-        NSData* empty   = emptyQuadsData([ctx pageSize], prev, NO);
-        page            = [ctx createPageWithData:empty];
-    }
-    
-    return page;
-}
-
-+ (GTWAOFRawQuads*) quadsWithQuads:(NSArray *)quads aof:(id<GTWAOF>)_aof {
-    __block GTWAOFPage* page;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
-//    NSLog(@"new quads head: %@", page);
-    return [[GTWAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
-}
-
-- (GTWAOFRawQuads*) quadsByAddingQuads:(NSArray*) quads {
-    __block GTWAOFPage* page;
-    int64_t prev  = self.pageID;
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        page    = [GTWAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
-        return YES;
-    }];
-    if (!ok)
-        return nil;
-    //    NSLog(@"new quads head: %@", page);
-    return [[GTWAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
-}
-
 - (GTWAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
@@ -99,7 +43,9 @@
         }
         
         if (!_head) {
-            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
+            NSLog(@"Failed to find a RawQuads page in AOF file");
+            return nil;
+//            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
         }
     }
     return self;
@@ -265,6 +211,92 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
         return nil;
     }
     return data;
+}
+
+@end
+
+
+@implementation GTWMutableAOFRawQuads
+
++ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx {
+    NSMutableArray* q   = [[quads sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+        int r   = memcmp([obj1 bytes], [obj2 bytes], 32);
+        if (r < 0) {
+            return NSOrderedAscending;
+        } else if (r > 0) {
+            return NSOrderedDescending;
+        } else {
+            return NSOrderedSame;
+        }
+    }] mutableCopy];
+    
+    GTWAOFPage* page;
+    int64_t prev  = prevID;
+    if ([q count]) {
+        while ([q count]) {
+            //                NSLog(@"%llu quads remaining", (unsigned long long)[q count]);
+            NSData* data    = newQuadsData([ctx pageSize], q, prev, NO);
+            if(!data)
+                return NO;
+            page    = [ctx createPageWithData:data];
+            prev    = page.pageID;
+        }
+    } else {
+        NSData* empty   = emptyQuadsData([ctx pageSize], prev, NO);
+        page            = [ctx createPageWithData:empty];
+    }
+    
+    return page;
+}
+
++ (GTWMutableAOFRawQuads*) quadsWithQuads:(NSArray *)quads aof:(id<GTWAOF>)_aof {
+    __block GTWAOFPage* page;
+    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
+        return YES;
+    }];
+    if (!ok)
+        return nil;
+    //    NSLog(@"new quads head: %@", page);
+    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
+}
+
+- (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads {
+    __block GTWAOFPage* page;
+    int64_t prev  = self.pageID;
+    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
+        return YES;
+    }];
+    if (!ok)
+        return nil;
+    //    NSLog(@"new quads head: %@", page);
+    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:_aof];
+}
+
+- (GTWMutableAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof {
+    if (self = [self init]) {
+        _aof    = aof;
+        _head   = nil;
+        NSInteger pageID;
+        NSInteger pageCount = [aof pageCount];
+        for (pageID = pageCount-1; pageID >= 0; pageID--) {
+            //            NSLog(@"Checking block %lu for dictionary head", pageID);
+            GTWAOFPage* p   = [aof readPage:pageID];
+            NSData* data    = p.data;
+            char cookie[5] = { 0,0,0,0,0 };
+            [data getBytes:cookie length:4];
+            if (!strncmp(cookie, RAW_QUADS_COOKIE, 4)) {
+                _head   = p;
+                break;
+            }
+        }
+        
+        if (!_head) {
+            return [GTWMutableAOFRawQuads quadsWithQuads:@[] aof:aof];
+        }
+    }
+    return self;
 }
 
 @end

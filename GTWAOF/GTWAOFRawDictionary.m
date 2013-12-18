@@ -52,6 +52,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
         }
         
         if (!_head) {
+            NSLog(@"Failed to find a RawDictionary page in AOF file");
             return nil;
 //            return [GTWAOFRawDictionary dictionaryWithDictionary:@{} aof:aof];
         }
@@ -535,6 +536,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         }
         
         if (!_head) {
+            NSLog(@"Failed to find a RawDictionary page in AOF file; creating an empty one");
             return [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} aof:aof];
         }
         [self _loadEntries];

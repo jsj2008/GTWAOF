@@ -18,10 +18,6 @@
 
 @property BOOL verbose;
 
-+ (GTWAOFRawQuads*) quadsWithQuads:(NSArray*) quads aof:(id<GTWAOF>)aof;
-- (GTWAOFRawQuads*) quadsByAddingQuads:(NSArray*) quads;
-+ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx;
-
 - (NSDate*) lastModified;
 - (NSInteger) pageID;
 - (NSInteger) previousPageID;
@@ -36,5 +32,13 @@
 - (void)enumerateDataRangeUsingBlock:(void (^)(NSData* obj, NSRange range, BOOL *stop))block;
 - (void)enumerateObjectsUsingBlock:(void (^)(id obj, NSUInteger idx, BOOL *stop))block;
 + (void)enumerateObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange range, NSUInteger idx, BOOL *stop))block followTail:(BOOL)follow;
+
+@end
+
+@interface GTWMutableAOFRawQuads : GTWAOFRawQuads
+
++ (GTWMutableAOFRawQuads*) quadsWithQuads:(NSArray*) quads aof:(id<GTWAOF>)aof;
+- (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads;
++ (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx;
 
 @end

@@ -234,9 +234,10 @@ static NSUInteger integerFromData(NSData* data) {
         _aof   = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDWR|O_SHLOCK];
         if (!_aof)
             return nil;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
-        _mutableDict   = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
-        _dict    = _mutableDict;
+        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
+        _quads          = _mutableQuads;
+        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _dict           = _mutableDict;
     }
     return self;
 }
@@ -244,9 +245,10 @@ static NSUInteger integerFromData(NSData* data) {
 - (instancetype) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
         _aof   = aof;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
-        _mutableDict   = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
-        _dict    = _mutableDict;
+        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
+        _quads          = _mutableQuads;
+        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _dict           = _mutableDict;
     }
     return self;
 }
@@ -310,7 +312,8 @@ static NSUInteger integerFromData(NSData* data) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
         _dict           = _mutableDict;
     }
-    _quads  = [_quads quadsByAddingQuads:@[quadData]];
+    _mutableQuads   = [_mutableQuads mutableQuadsByAddingQuads:@[quadData]];
+    _quads          = _mutableQuads;
     return YES;
 }
 
@@ -337,7 +340,8 @@ static NSUInteger integerFromData(NSData* data) {
         [quadsData addObject:quadData];
     }
     //    NSLog(@"creating new quads head");
-    _quads  = [_quads quadsByAddingQuads:quadsData];
+    _mutableQuads   = [_mutableQuads mutableQuadsByAddingQuads:quadsData];
+    _quads          = _mutableQuads;
     if ([map count]) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
         _dict           = _mutableDict;
@@ -399,12 +403,12 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSInteger tailID                = quadsPage.previousPageID;
         //        NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
-        GTWAOFRawQuads* rewrittenPage;
+        GTWMutableAOFRawQuads* rewrittenPage;
         if (tailID >= 0) {
-            GTWAOFRawQuads* quadsPageTail   = [[GTWAOFRawQuads alloc] initWithPageID:quadsPage.previousPageID fromAOF:_aof];
-            rewrittenPage   = [quadsPageTail quadsByAddingQuads:quadsData];
+            GTWMutableAOFRawQuads* quadsPageTail   = [[GTWMutableAOFRawQuads alloc] initWithPageID:quadsPage.previousPageID fromAOF:_aof];
+            rewrittenPage   = [quadsPageTail mutableQuadsByAddingQuads:quadsData];
         } else {
-            rewrittenPage   = [GTWAOFRawQuads quadsWithQuads:quadsData aof:_aof];
+            rewrittenPage   = [GTWMutableAOFRawQuads quadsWithQuads:quadsData aof:_aof];
         }
         
         tailID    = rewrittenPage.pageID;
@@ -423,10 +427,11 @@ static NSUInteger integerFromData(NSData* data) {
             } followTail:NO];
             
             //            NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
-            GTWAOFRawQuads* rewrittenPage   = [_quads quadsByAddingQuads:quadsData];
+            GTWMutableAOFRawQuads* rewrittenPage   = [_mutableQuads mutableQuadsByAddingQuads:quadsData];
             //            NSLog(@"-> new page ID: %lld", (long long)rewrittenPage.pageID);
-            _quads  = rewrittenPage;
-            tailID    = rewrittenPage.pageID;
+            _mutableQuads   = rewrittenPage;
+            _quads          = _mutableQuads;
+            tailID          = rewrittenPage.pageID;
         }
     }
     
