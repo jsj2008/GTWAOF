@@ -204,7 +204,7 @@ int main(int argc, const char * argv[]) {
             fprintf(stdout, "%s\n", [d UTF8String]);
         }];
     } else if (!strcmp(op, "adddict")) {
-        GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
+        GTWMutableAOFRawDictionary* d  = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
         for (int i = 2; i < argc; i++) {
             NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
@@ -239,7 +239,7 @@ int main(int argc, const char * argv[]) {
         }
         
         NSLog(@"creating dictionary: %@", dict);
-        [GTWAOFRawDictionary dictionaryWithDictionary:dict aof:aof];
+        [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:dict aof:aof];
     } else if (!strcmp(op, "term")) {
         long long n     = atoll(argv[2]);
         long long bign  = NSSwapHostLongLongToBig(n);
@@ -403,7 +403,7 @@ int main(int argc, const char * argv[]) {
                 [quads addObject:quadData];
             } error:nil];
             [GTWAOFRawQuads quadsWithQuads:quads aof:aof];
-            [GTWAOFRawDictionary dictionaryWithDictionary:map aof:aof];
+            [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:map aof:aof];
         } else {
             NSLog(@"Could not construct parser");
         }

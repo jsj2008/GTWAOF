@@ -235,7 +235,18 @@ static NSUInteger integerFromData(NSData* data) {
         if (!_aof)
             return nil;
         _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
-        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _mutableDict   = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _dict    = _mutableDict;
+    }
+    return self;
+}
+
+- (instancetype) initWithAOF: (id<GTWAOF>) aof {
+    if (self = [self init]) {
+        _aof   = aof;
+        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
+        _mutableDict   = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _dict    = _mutableDict;
     }
     return self;
 }
@@ -296,7 +307,8 @@ static NSUInteger integerFromData(NSData* data) {
     }
     
     if ([map count]) {
-        _dict   = [_dict dictionaryByAddingDictionary:map];
+        _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
+        _dict           = _mutableDict;
     }
     _quads  = [_quads quadsByAddingQuads:@[quadData]];
     return YES;
@@ -326,8 +338,10 @@ static NSUInteger integerFromData(NSData* data) {
     }
     //    NSLog(@"creating new quads head");
     _quads  = [_quads quadsByAddingQuads:quadsData];
-    if ([map count])
-        _dict   = [_dict dictionaryByAddingDictionary:map];
+    if ([map count]) {
+        _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
+        _dict           = _mutableDict;
+    }
     return YES;
 }
 

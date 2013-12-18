@@ -30,6 +30,7 @@
 
 @interface GTWMutableAOFQuadStore : GTWAOFQuadStore<GTWMutableQuadStore> {
     NSMutableArray* _bulkQuads;
+    GTWMutableAOFRawDictionary* _mutableDict;
 }
 
 @property BOOL bulkLoading;

@@ -24,10 +24,6 @@
 
 @property BOOL verbose;
 
-+ (GTWAOFRawDictionary*) dictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)aof;
-- (GTWAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
-+ (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
-
 - (NSDate*) lastModified;
 - (NSUInteger) count;
 - (NSInteger) pageID;
@@ -41,5 +37,13 @@
 - (NSEnumerator*) keyEnumerator;
 - (NSData*)keyForObject:(NSData*)anObject;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;
+
+@end
+
+@interface GTWMutableAOFRawDictionary : GTWAOFRawDictionary
+
++ (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict aof:(id<GTWAOF>)_aof;
+- (GTWMutableAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
++ (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
