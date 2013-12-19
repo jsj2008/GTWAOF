@@ -23,6 +23,7 @@
 #import "GTWAOFQuadStore.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
 #import "GTWAOFRawValue.h"
+#import "GTWAOFBTreeNode.h"
 
 double current_time ( void ) {
 	struct timeval t;
@@ -107,18 +108,28 @@ NSData* dataFromInteger(NSUInteger value) {
     return [NSData dataWithBytes:&bign length:8];
 }
 
-//NSUInteger integerFromData(NSData* data) {
-//    long long bign;
-//    [data getBytes:&bign range:NSMakeRange(0, 8)];
-//    long long n = NSSwapBigLongLongToHost(bign);
-//    return (NSUInteger) n;
-//}
+NSUInteger integerFromData(NSData* data) {
+    long long bign;
+    [data getBytes:&bign range:NSMakeRange(0, 8)];
+    long long n = NSSwapBigLongLongToHost(bign);
+    return (NSUInteger) n;
+}
 
 void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     NSData* data    = p.data;
     char cookie[5] = { 0,0,0,0,0 };
     [data getBytes:cookie length:4];
-    NSDictionary* names = @{@"RDCT": @"Raw Dictionary", @"RQDS": @"Raw Quads", @"RVAL": @"Raw Value"};
+#define BTREE_ROOT_NODE_COOKIE "BPTR"
+#define BTREE_INTERNAL_NODE_COOKIE "BPTI"
+#define BTREE_LEAF_NODE_COOKIE "BPTL"
+    NSDictionary* names = @{
+                            @"RDCT": @"Raw Dictionary",
+                            @"RQDS": @"Raw Quads",
+                            @"RVAL": @"Raw Value",
+                            @"BPTR": @"B+ Tree Root Node",
+                            @"BPTI": @"B+ Tree Internal Node",
+                            @"BPTL": @"B+ Tree Leaf Node"
+                            };
     NSString* c = [NSString stringWithFormat:@"%s", cookie];
     fprintf(stdout, "Page %-6lu\n", p.pageID);
     NSDate* modified    = [p lastModified];
@@ -142,6 +153,10 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         GTWAOFRawQuads* obj         = [[GTWAOFRawQuads alloc] initWithPage:p fromAOF:aof];
         NSUInteger count            = [obj count];
         fprintf(stdout, "    Quads         : %lld\n", (long long)count);
+    } else if ([c rangeOfString:@"BPT[RIL]" options:NSRegularExpressionSearch].location == 0) {
+        GTWAOFBTreeNode* obj         = [[GTWAOFBTreeNode alloc] initWithPage:p parentID:-1 fromAOF:aof];
+        NSUInteger count            = [obj count];
+        fprintf(stdout, "    Keys          : %lld\n", (long long)count);
     }
 }
 
@@ -432,6 +447,49 @@ int main(int argc, const char * argv[]) {
         for (pageID = 0; pageID < pageCount; pageID++) {
             GTWAOFPage* p   = [aof readPage:pageID];
             printPageSummary(aof, p);
+        }
+    } else if (!strcmp(op, "mkbtree")) {
+        __block NSInteger leafPageID, rootPageID;
+        [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            NSMutableArray* keys    = [NSMutableArray array];
+            NSMutableArray* vals    = [NSMutableArray array];
+            for (int i = 0; i < 16; i++) {
+                NSUInteger value = rand();
+                NSLog(@"adding value -> %llu", (unsigned long long)value);
+                NSData* data    = dataFromInteger(value);
+                [keys addObject:data];
+                [vals addObject:data];
+            }
+            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+            leafPageID  = [leaf pageID];
+            NSLog(@"Created b-tree leaf: %@", leaf);
+            
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:@[] pageIDs:@[@(leafPageID)] updateContext:ctx];
+            rootPageID  = [root pageID];
+            return YES;
+        }];
+    } else if (!strcmp(op, "btree")) {
+        NSInteger pageID    = 0;
+        if (argc > 2) {
+            pageID    = (NSInteger)atoll(argv[2]);
+        }
+        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
+        NSLog(@"btree: %@", b);
+        if (b.type == GTWAOFBTreeLeafNodeType) {
+            [b enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+                NSUInteger k    = integerFromData(key);
+                NSUInteger v    = integerFromData(obj);
+                NSLog(@"\t%llu -> %llu", (unsigned long long)k, (unsigned long long)v);
+            }];
+        } else {
+            [b enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
+                if (key) {
+                    NSUInteger k    = integerFromData(key);
+                    NSLog(@"\t%llu -> page %lld", (unsigned long long)k, (long long)pageID);
+                } else {
+                    NSLog(@"\t(max) -> page %lld", (long long)pageID);
+                }
+            }];
         }
     } else if (!strcmp(op, "stress")) {
         stress(aof);
