@@ -37,9 +37,12 @@ typedef NS_ENUM(NSInteger, GTWAOFBTreeNodeType) {
 - (NSDate*) lastModified;
 - (NSUInteger) count;
 - (NSArray*) allKeys;
+- (NSData*) maxKey;
+- (NSData*) minKey;
 - (void)enumerateKeysAndPageIDsUsingBlock:(void (^)(NSData* key, NSInteger pageID, BOOL *stop))block;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
 - (GTWAOFBTreeNode*) childForKey:(NSData*)key;
+- (BOOL) verify;
 
 @end
 

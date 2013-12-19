@@ -108,6 +108,19 @@ NSData* dataFromInteger(NSUInteger value) {
     return [NSData dataWithBytes:&bign length:8];
 }
 
+NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInteger d) {
+    NSMutableData* data = [NSMutableData dataWithLength:32];
+    int64_t biga  = NSSwapHostLongLongToBig((long long) a);
+    int64_t bigb  = NSSwapHostLongLongToBig((long long) b);
+    int64_t bigc  = NSSwapHostLongLongToBig((long long) c);
+    int64_t bigd  = NSSwapHostLongLongToBig((long long) d);
+    [data replaceBytesInRange:NSMakeRange(0, 8) withBytes:&biga];
+    [data replaceBytesInRange:NSMakeRange(8, 8) withBytes:&bigb];
+    [data replaceBytesInRange:NSMakeRange(16, 8) withBytes:&bigc];
+    [data replaceBytesInRange:NSMakeRange(24, 8) withBytes:&bigd];
+    return data;
+}
+
 NSUInteger integerFromData(NSData* data) {
     long long bign;
     [data getBytes:&bign range:NSMakeRange(0, 8)];
@@ -449,22 +462,33 @@ int main(int argc, const char * argv[]) {
             printPageSummary(aof, p);
         }
     } else if (!strcmp(op, "mkbtree")) {
-        __block NSInteger leafPageID, rootPageID;
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            NSMutableArray* keys    = [NSMutableArray array];
-            NSMutableArray* vals    = [NSMutableArray array];
-            for (int i = 0; i < 16; i++) {
-                NSUInteger value = rand();
-                NSLog(@"adding value -> %llu", (unsigned long long)value);
-                NSData* data    = dataFromInteger(value);
-                [keys addObject:data];
-                [vals addObject:data];
+            NSInteger leafPageID[2], rootPageID;
+            NSData* leafPageMax[2];
+            for (int j = 0; j < 2; j++) {
+                NSMutableArray* numbers = [NSMutableArray array];
+                for (int i = 0; i < 16; i++) {
+                    NSUInteger value = rand();
+                    [numbers addObject:@(value)];
+                }
+                [numbers sortUsingSelector:@selector(compare:)];
+                
+                NSMutableArray* keys    = [NSMutableArray array];
+                NSMutableArray* vals    = [NSMutableArray array];
+                for (NSNumber* number in numbers) {
+                    NSUInteger value    = [number integerValue];
+                    NSLog(@"adding value -> %llu", (unsigned long long)value);
+                    NSData* keyData     = dataFromIntegers(1, 2, 3, value);
+                    [keys addObject:keyData];
+                    NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
+                    [vals addObject:object];
+                }
+                GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+                leafPageID[j]  = [leaf pageID];
+                leafPageMax[j]  = [leaf maxKey];
+                NSLog(@"Created b-tree leaf: %@", leaf);
             }
-            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
-            leafPageID  = [leaf pageID];
-            NSLog(@"Created b-tree leaf: %@", leaf);
-            
-            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:@[] pageIDs:@[@(leafPageID)] updateContext:ctx];
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:@[leafPageMax[0]] pageIDs:@[@(leafPageID[0]), @(leafPageID[1])] updateContext:ctx];
             rootPageID  = [root pageID];
             return YES;
         }];
@@ -491,6 +515,13 @@ int main(int argc, const char * argv[]) {
                 }
             }];
         }
+    } else if (!strcmp(op, "btverify")) {
+        NSInteger pageID    = 0;
+        if (argc > 2) {
+            pageID    = (NSInteger)atoll(argv[2]);
+        }
+        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
+        [b verify];
     } else if (!strcmp(op, "stress")) {
         stress(aof);
     }
