@@ -28,6 +28,16 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       buildConfiguration = "Debug">
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "37FEA499186407F800A0BCC2"
+               BuildableName = "GTWAOF Tests.xctest"
+               BlueprintName = "GTWAOF Tests"
+               ReferencedContainer = "container:GTWAOF.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <MacroExpansion>
          <BuildableReference

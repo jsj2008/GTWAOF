@@ -26,6 +26,9 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
 
+static const NSInteger keySize  = 32;
+static const NSInteger valSize  = 8;
+
 double current_time ( void ) {
 	struct timeval t;
 	gettimeofday (&t, NULL);
@@ -168,7 +171,7 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         NSUInteger count            = [obj count];
         fprintf(stdout, "    Quads         : %lld\n", (long long)count);
     } else if ([c rangeOfString:@"BPT[RIL]" options:NSRegularExpressionSearch].location == 0) {
-        GTWAOFBTreeNode* obj         = [[GTWAOFBTreeNode alloc] initWithPage:p parentID:-1 fromAOF:aof];
+        GTWAOFBTreeNode* obj         = [[GTWAOFBTreeNode alloc] initWithPage:p parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
         NSUInteger count            = [obj count];
         fprintf(stdout, "    Keys          : %lld\n", (long long)count);
     }
@@ -492,7 +495,7 @@ int main(int argc, const char * argv[]) {
                     NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
                     [vals addObject:object];
                 }
-                GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+                GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
                 [pages addObject:leaf];
                 NSLog(@"Created b-tree leaf: %@", leaf);
                 leaf_page++;
@@ -510,7 +513,7 @@ int main(int argc, const char * argv[]) {
                 [rootValues addObject:@(pageID)];
             }
             
-            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:keySize valueSize:valSize keys:rootKeys pageIDs:rootValues updateContext:ctx];
             NSLog(@"root node: %@", root);
             return YES;
         }];
@@ -546,7 +549,7 @@ int main(int argc, const char * argv[]) {
         if (argc > 2) {
             pageID    = (NSInteger)atoll(argv[2]);
         }
-        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
+        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
         [b verify];
     } else if (!strcmp(op, "stress")) {
         stress(aof);

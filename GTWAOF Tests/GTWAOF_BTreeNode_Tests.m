@@ -26,11 +26,11 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
 
-//static NSData* dataFromInteger(NSUInteger value) {
-//    long long n = (long long) value;
-//    long long bign  = NSSwapHostLongLongToBig(n);
-//    return [NSData dataWithBytes:&bign length:8];
-//}
+static NSData* dataFromInteger(NSUInteger value) {
+    long long n = (long long) value;
+    long long bign  = NSSwapHostLongLongToBig(n);
+    return [NSData dataWithBytes:&bign length:8];
+}
 
 static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInteger d) {
     NSMutableData* data = [NSMutableData dataWithLength:32];
@@ -43,6 +43,13 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
     [data replaceBytesInRange:NSMakeRange(16, 8) withBytes:&bigc];
     [data replaceBytesInRange:NSMakeRange(24, 8) withBytes:&bigd];
     return data;
+}
+
+static NSUInteger integerFromData(NSData* data) {
+    long long bign;
+    [data getBytes:&bign range:NSMakeRange(0, 8)];
+    long long n = NSSwapBigLongLongToHost(bign);
+    return (NSUInteger) n;
 }
 
 @interface GTWAOF_Tests : XCTestCase {
@@ -68,7 +75,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
 
 - (void)test_createLeaf {
     NSMutableArray* numbers = [NSMutableArray array];
-    const int total_keys    = 200;
+    const int total_keys    = 204;
     for (int j = 0; j < total_keys; j++) {
         uint64_t value;
         uint32_t* pair  = (uint32_t*) &value;
@@ -89,7 +96,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
             NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
         XCTAssertNotNil(leaf, @"B+ Tree leaf node created");
         return YES;
     }];
@@ -99,7 +106,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         NSArray* rootKeys    = @[dataFromIntegers(0,0,0,1), dataFromIntegers(0,0,0,2), dataFromIntegers(0,0,0,3)];
         NSArray* rootValues  = @[@(11), @(22), @(33), @(44)];
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNotNil(root, @"B+ Tree root node created");
         return YES;
     }];
@@ -120,7 +127,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
             }
             [rootValues addObject:@(value)];
         }
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNil(root, @"Overfull B+ Tree root node creation returns nil");
         return YES;
     }];
@@ -149,7 +156,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
             NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
         XCTAssertNil(leaf, @"Overfull B+ Tree leaf node creation returns nil");
         return YES;
     }];
@@ -186,7 +193,7 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
                 NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
                 [vals addObject:object];
             }
-            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
+            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
             XCTAssertNotNil(leaf, @"B+ Tree leaf node created");
             [pages addObject:leaf];
             leaf_page++;
@@ -204,10 +211,68 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
             [rootValues addObject:@(pageID)];
         }
         
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNotNil(root, @"B+ Tree root node created");
         return YES;
     }];
+}
+
+- (void)test_btreeDataSizes {
+    const NSUInteger keySize = 2;
+    const NSUInteger valSize = 3;
+    NSMutableArray* numbers = [NSMutableArray array];
+    const NSUInteger total_keys    = 1632;
+    const NSUInteger start  = 0;
+    for (int j = 0; j < total_keys; j++) {
+        [numbers addObject:@(j)];
+    }
+    __block NSInteger pageID    = -1;
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        NSArray* pageNumbers    = [numbers copy];
+        NSMutableArray* keys    = [NSMutableArray array];
+        NSMutableArray* vals    = [NSMutableArray array];
+        for (NSNumber* number in pageNumbers) {
+            NSUInteger value    = [number unsignedIntegerValue];
+            //            NSLog(@"adding value -> %lld", (long long)value);
+            NSData* keyIntData  = dataFromInteger(value);
+            NSData* keyData     = [keyIntData subdataWithRange:NSMakeRange(6, 2)];
+            [keys addObject:keyData];
+            NSData* object   = [NSData dataWithBytes:"\x00\x00\xFF" length:3];
+            [vals addObject:object];
+        }
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
+        XCTAssertNotNil(leaf, @"B+ Tree leaf node created with data sizes {%d, %d}", (int)keySize, (int)valSize);
+        if (leaf) {
+            pageID  = leaf.pageID;
+            return YES;
+        }
+        return NO;
+    }];
+    
+    if (pageID >= 0) {
+        GTWAOFBTreeNode* node   = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 keySize:keySize valueSize:valSize fromAOF:_aof];
+        XCTAssertNotNil(node, @"Retrieved leaf node from AOF");
+        NSMutableIndexSet* set = [[NSMutableIndexSet alloc] init];
+        __block NSUInteger count    = 0;
+        [node enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            XCTAssertEqual([key length], keySize, @"Expected key size");
+            XCTAssertEqual([obj length], valSize, @"Expected value size");
+//            NSLog(@"[%d] %@ -> %@", (int)count, key, obj);
+            NSMutableData* k    = [NSMutableData dataWithLength:8];
+            [k replaceBytesInRange:NSMakeRange(6, 2) withBytes:key.bytes];
+            NSUInteger value    = integerFromData(k);
+            [set addIndex:value];
+            count++;
+        }];
+        __block NSInteger rangeCount    = 0;
+        [set enumerateRangesUsingBlock:^(NSRange range, BOOL *stop) {
+            rangeCount++;
+            XCTAssertEqual(range.location, start, @"Contiguous range starts at expected value");
+            XCTAssertEqual(range.length, total_keys, @"Contiguous range has expected length");
+        }];
+        XCTAssertEqual(rangeCount, (NSInteger)1, @"Contiguous range of custom-sized key data");
+        XCTAssertEqual(count, (NSUInteger)total_keys, @"Expected pair count in leaf node");
+    }
 }
 
 @end

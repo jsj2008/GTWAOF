@@ -8,12 +8,15 @@
 
 #import "GTWAOFBTree.h"
 
+static const NSInteger keySize  = 32;
+static const NSInteger valSize  = 8;
+
 @implementation GTWAOFBTree
 
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof        = aof;
-        _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
+        _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
     }
     return self;
 }
@@ -21,7 +24,7 @@
 - (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
-        _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parentID:-1 fromAOF:aof];
+        _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
     }
     return self;
 }
@@ -38,7 +41,7 @@
         }];
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:node.pageID fromAOF:aof];
+            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:node.pageID keySize:keySize valueSize:valSize fromAOF:aof];
             NSLog(@"found b+ tree child node %@", child);
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:block];
         }];
