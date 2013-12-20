@@ -199,7 +199,7 @@ static NSUInteger integerFromData(NSData* data) {
     for (i = 0; i < count; i++) {
         NSData* k = _keys[i];
         NSComparisonResult r    = [key gtw_compare:k];
-        if (r == NSOrderedAscending) {
+        if (r != NSOrderedDescending) {
             NSNumber* number    = _pageIDs[i];
             NSInteger pageID    = [number integerValue];
             return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:self.pageID fromAOF:_aof];
