@@ -43,7 +43,7 @@
 		378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
 		37FEA49C186407F800A0BCC2 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37FEA49B186407F800A0BCC2 /* XCTest.framework */; };
 		37FEA4A2186407F800A0BCC2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 37FEA4A0186407F800A0BCC2 /* InfoPlist.strings */; };
-		37FEA4A4186407F800A0BCC2 /* GTWAOF_BTree_Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 37FEA4A3186407F800A0BCC2 /* GTWAOF_BTree_Tests.m */; };
+		37FEA4A4186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 37FEA4A3186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m */; };
 		37FEA4AB186408FA00A0BCC2 /* SPARQLKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E61185510F20085556E /* SPARQLKit.framework */; };
 		37FEA4AC186408FD00A0BCC2 /* GTWSWBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E60185510F20085556E /* GTWSWBase.framework */; };
 		37FEA4AD18640A9B00A0BCC2 /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
@@ -125,7 +125,7 @@
 		37FEA49B186407F800A0BCC2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		37FEA49F186407F800A0BCC2 /* GTWAOF Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GTWAOF Tests-Info.plist"; sourceTree = "<group>"; };
 		37FEA4A1186407F800A0BCC2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		37FEA4A3186407F800A0BCC2 /* GTWAOF_BTree_Tests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GTWAOF_BTree_Tests.m; sourceTree = "<group>"; };
+		37FEA4A3186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GTWAOF_BTreeNode_Tests.m; sourceTree = "<group>"; };
 		37FEA4A5186407F800A0BCC2 /* GTWAOF Tests-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "GTWAOF Tests-Prefix.pch"; sourceTree = "<group>"; };
 		37FEA4BB18640B4600A0BCC2 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -257,7 +257,7 @@
 		37FEA49D186407F800A0BCC2 /* GTWAOF Tests */ = {
 			isa = PBXGroup;
 			children = (
-				37FEA4A3186407F800A0BCC2 /* GTWAOF_BTree_Tests.m */,
+				37FEA4A3186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m */,
 				37FEA49E186407F800A0BCC2 /* Supporting Files */,
 			);
 			path = "GTWAOF Tests";
@@ -436,7 +436,7 @@
 				37FEA4B618640A9B00A0BCC2 /* NSData+GTWCompare.m in Sources */,
 				37FEA4B718640A9B00A0BCC2 /* GTWAOFBTree.m in Sources */,
 				37FEA4B818640A9B00A0BCC2 /* GTWAOFBTreeNode.m in Sources */,
-				37FEA4A4186407F800A0BCC2 /* GTWAOF_BTree_Tests.m in Sources */,
+				37FEA4A4186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
