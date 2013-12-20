@@ -26,11 +26,11 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
 
-static NSData* dataFromInteger(NSUInteger value) {
-    long long n = (long long) value;
-    long long bign  = NSSwapHostLongLongToBig(n);
-    return [NSData dataWithBytes:&bign length:8];
-}
+//static NSData* dataFromInteger(NSUInteger value) {
+//    long long n = (long long) value;
+//    long long bign  = NSSwapHostLongLongToBig(n);
+//    return [NSData dataWithBytes:&bign length:8];
+//}
 
 static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInteger d) {
     NSMutableData* data = [NSMutableData dataWithLength:32];
