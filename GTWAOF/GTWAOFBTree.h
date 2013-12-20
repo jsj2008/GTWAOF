@@ -7,7 +7,19 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "GTWAOFBTreeNode.h"
 
-@interface GTWAOFBTree : NSObject
+@interface GTWAOFBTree : NSObject {
+    id<GTWAOF> _aof;
+    GTWAOFBTreeNode* _root;
+}
+
+- (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
+- (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
+- (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
+
+@end
+
+@interface GTWMutableAOFBTree : GTWAOFBTree
 
 @end

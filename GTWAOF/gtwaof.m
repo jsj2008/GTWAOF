@@ -24,6 +24,7 @@
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
 #import "GTWAOFRawValue.h"
 #import "GTWAOFBTreeNode.h"
+#import "GTWAOFBTree.h"
 
 double current_time ( void ) {
 	struct timeval t;
@@ -110,10 +111,10 @@ NSData* dataFromInteger(NSUInteger value) {
 
 NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInteger d) {
     NSMutableData* data = [NSMutableData dataWithLength:32];
-    int64_t biga  = NSSwapHostLongLongToBig((long long) a);
-    int64_t bigb  = NSSwapHostLongLongToBig((long long) b);
-    int64_t bigc  = NSSwapHostLongLongToBig((long long) c);
-    int64_t bigd  = NSSwapHostLongLongToBig((long long) d);
+    int64_t biga  = NSSwapHostLongLongToBig((unsigned long long) a);
+    int64_t bigb  = NSSwapHostLongLongToBig((unsigned long long) b);
+    int64_t bigc  = NSSwapHostLongLongToBig((unsigned long long) c);
+    int64_t bigd  = NSSwapHostLongLongToBig((unsigned long long) d);
     [data replaceBytesInRange:NSMakeRange(0, 8) withBytes:&biga];
     [data replaceBytesInRange:NSMakeRange(8, 8) withBytes:&bigb];
     [data replaceBytesInRange:NSMakeRange(16, 8) withBytes:&bigc];
@@ -462,34 +463,55 @@ int main(int argc, const char * argv[]) {
             printPageSummary(aof, p);
         }
     } else if (!strcmp(op, "mkbtree")) {
+        NSMutableArray* numbers = [NSMutableArray array];
+        const int total_keys    = 500;
+        const int page_size     = 100;
+        for (int j = 0; j < total_keys; j++) {
+            uint64_t value;
+            uint32_t* pair  = (uint32_t*) &value;
+            pair[0]     = rand();
+            pair[1]     = rand();
+            [numbers addObject:@(value)];
+        }
+        [numbers sortUsingSelector:@selector(compare:)];
+
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            NSInteger leafPageID[2], rootPageID;
-            NSData* leafPageMax[2];
-            for (int j = 0; j < 2; j++) {
-                NSMutableArray* numbers = [NSMutableArray array];
-                for (int i = 0; i < 16; i++) {
-                    NSUInteger value = rand();
-                    [numbers addObject:@(value)];
-                }
-                [numbers sortUsingSelector:@selector(compare:)];
-                
+            NSMutableArray* pages   = [NSMutableArray array];
+            NSUInteger leaf_page    = 0;
+            while ([numbers count]) {
+                NSRange range           = NSMakeRange(0, page_size);
+                NSArray* pageNumbers    = [numbers subarrayWithRange:range];
+                [numbers removeObjectsInRange:range];
                 NSMutableArray* keys    = [NSMutableArray array];
                 NSMutableArray* vals    = [NSMutableArray array];
-                for (NSNumber* number in numbers) {
-                    NSUInteger value    = [number integerValue];
-                    NSLog(@"adding value -> %llu", (unsigned long long)value);
+                for (NSNumber* number in pageNumbers) {
+                    NSUInteger value    = [number unsignedIntegerValue];
+                    NSLog(@"adding value -> %lld", (long long)value);
                     NSData* keyData     = dataFromIntegers(1, 2, 3, value);
                     [keys addObject:keyData];
                     NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
                     [vals addObject:object];
                 }
                 GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParentID:-1 keys:keys objects:vals updateContext:ctx];
-                leafPageID[j]  = [leaf pageID];
-                leafPageMax[j]  = [leaf maxKey];
+                [pages addObject:leaf];
                 NSLog(@"Created b-tree leaf: %@", leaf);
+                leaf_page++;
             }
-            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:@[leafPageMax[0]] pageIDs:@[@(leafPageID[0]), @(leafPageID[1])] updateContext:ctx];
-            rootPageID  = [root pageID];
+            
+            NSMutableArray* rootKeys    = [NSMutableArray array];
+            NSMutableArray* rootValues  = [NSMutableArray array];
+            for (NSUInteger i = 0; i < [pages count]; i++) {
+                GTWAOFBTreeNode* child  = pages[i];
+                NSInteger pageID    = child.pageID;
+                NSData* key         = [child maxKey];
+                if (i < ([pages count]-1)) {
+                    [rootKeys addObject:key];
+                }
+                [rootValues addObject:@(pageID)];
+            }
+            
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+            NSLog(@"root node: %@", root);
             return YES;
         }];
     } else if (!strcmp(op, "btree")) {
@@ -497,24 +519,28 @@ int main(int argc, const char * argv[]) {
         if (argc > 2) {
             pageID    = (NSInteger)atoll(argv[2]);
         }
-        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
-        NSLog(@"btree: %@", b);
-        if (b.type == GTWAOFBTreeLeafNodeType) {
-            [b enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-                NSUInteger k    = integerFromData(key);
-                NSUInteger v    = integerFromData(obj);
-                NSLog(@"\t%llu -> %llu", (unsigned long long)k, (unsigned long long)v);
-            }];
-        } else {
-            [b enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
-                if (key) {
-                    NSUInteger k    = integerFromData(key);
-                    NSLog(@"\t%llu -> page %lld", (unsigned long long)k, (long long)pageID);
-                } else {
-                    NSLog(@"\t(max) -> page %lld", (long long)pageID);
-                }
-            }];
-        }
+        GTWAOFBTree* t      = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
+        NSLog(@"btree: %@", t);
+        __block NSUInteger count    = 0;
+        [t enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            NSLog(@"[%3lu]\t%@ -> %@", ++count, key, obj);
+        }];
+//        if (b.type == GTWAOFBTreeLeafNodeType) {
+//            [b enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+//                NSUInteger k    = integerFromData(key);
+//                NSUInteger v    = integerFromData(obj);
+//                NSLog(@"\t%llu -> %llu", (unsigned long long)k, (unsigned long long)v);
+//            }];
+//        } else {
+//            [b enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
+//                if (key) {
+//                    NSUInteger k    = integerFromData(key);
+//                    NSLog(@"\t%llu -> page %lld", (unsigned long long)k, (long long)pageID);
+//                } else {
+//                    NSLog(@"\t(max) -> page %lld", (long long)pageID);
+//                }
+//            }];
+//        }
     } else if (!strcmp(op, "btverify")) {
         NSInteger pageID    = 0;
         if (argc > 2) {

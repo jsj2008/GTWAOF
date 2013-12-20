@@ -31,7 +31,12 @@
 - (GTWAOFDirectFile*) initWithFilename: (NSString*) file flags:(int)oflag {
     if (self = [self init]) {
         _filename   = file;
-        const char* filename  = [file UTF8String];
+        
+        NSURL* url    = [[NSURL fileURLWithPath:file] absoluteURL];
+        const char* filename    = [url fileSystemRepresentation];
+        NSLog(@"AOF file: %s", filename);
+        
+//        const char* filename  = [file UTF8String];
         struct stat sbuf;
         int sr	= stat(filename, &sbuf);
         if (sr == -1 && errno == ENOENT) {

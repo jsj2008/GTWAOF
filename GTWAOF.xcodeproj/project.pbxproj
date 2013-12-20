@@ -35,6 +35,10 @@
 		375A71B9185D6FA40060C151 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
 		375B76DB18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */; };
 		375B76DC18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */; };
+		375B76DF186371A800F1CE1E /* NSData+GTWCompare.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DE186371A800F1CE1E /* NSData+GTWCompare.m */; };
+		375B76E0186371A800F1CE1E /* NSData+GTWCompare.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DE186371A800F1CE1E /* NSData+GTWCompare.m */; };
+		375B76E31863A9B200F1CE1E /* GTWAOFBTree.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */; };
+		375B76E41863A9B200F1CE1E /* GTWAOFBTree.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */; };
 		378627281856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
 		378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
 /* End PBXBuildFile section */
@@ -81,6 +85,10 @@
 		375A71B7185D6FA40060C151 /* GZIP.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GZIP.m; sourceTree = "<group>"; };
 		375B76D918626A8100F1CE1E /* GTWAOFBTreeNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFBTreeNode.h; sourceTree = "<group>"; };
 		375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFBTreeNode.m; sourceTree = "<group>"; };
+		375B76DD186371A800F1CE1E /* NSData+GTWCompare.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSData+GTWCompare.h"; sourceTree = "<group>"; };
+		375B76DE186371A800F1CE1E /* NSData+GTWCompare.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSData+GTWCompare.m"; sourceTree = "<group>"; };
+		375B76E11863A9B200F1CE1E /* GTWAOFBTree.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFBTree.h; sourceTree = "<group>"; };
+		375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFBTree.m; sourceTree = "<group>"; };
 		378627261856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "GTWAOFPage+GTWAOFLinkedPage.h"; sourceTree = "<group>"; };
 		378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "GTWAOFPage+GTWAOFLinkedPage.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -164,6 +172,10 @@
 				378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */,
 				375A71B6185D6FA40060C151 /* GZIP.h */,
 				375A71B7185D6FA40060C151 /* GZIP.m */,
+				375B76DD186371A800F1CE1E /* NSData+GTWCompare.h */,
+				375B76DE186371A800F1CE1E /* NSData+GTWCompare.m */,
+				375B76E11863A9B200F1CE1E /* GTWAOFBTree.h */,
+				375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */,
 				375B76D918626A8100F1CE1E /* GTWAOFBTreeNode.h */,
 				375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */,
 			);
@@ -270,12 +282,14 @@
 			files = (
 				37527E81185584270085556E /* GTWAOFRawDictionary.m in Sources */,
 				370F1302185F75BA00810F2F /* GTWAOFRawValue.m in Sources */,
+				375B76E31863A9B200F1CE1E /* GTWAOFBTree.m in Sources */,
 				37527E6A1855177C0085556E /* GTWAOFDirectFile.m in Sources */,
 				37527E9118564EE80085556E /* GTWAOFRawQuads.m in Sources */,
 				375B76DB18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */,
 				375A71B8185D6FA40060C151 /* GZIP.m in Sources */,
 				378627281856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				37527E95185682D20085556E /* GTWAOFQuadStore.m in Sources */,
+				375B76DF186371A800F1CE1E /* NSData+GTWCompare.m in Sources */,
 				37527E6D18552F6D0085556E /* GTWAOFUpdateContext.m in Sources */,
 				37527E67185515C10085556E /* GTWAOFPage.m in Sources */,
 			);
@@ -287,6 +301,7 @@
 			files = (
 				37527E82185584320085556E /* GTWAOFRawDictionary.m in Sources */,
 				375A71B9185D6FA40060C151 /* GZIP.m in Sources */,
+				375B76E41863A9B200F1CE1E /* GTWAOFBTree.m in Sources */,
 				370F1303185F75BA00810F2F /* GTWAOFRawValue.m in Sources */,
 				378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				375B76DC18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */,
@@ -294,6 +309,7 @@
 				37527E8518558CE20085556E /* gtwaof.m in Sources */,
 				37527E96185682D20085556E /* GTWAOFQuadStore.m in Sources */,
 				37527E7C18553F670085556E /* GTWAOFUpdateContext.m in Sources */,
+				375B76E0186371A800F1CE1E /* NSData+GTWCompare.m in Sources */,
 				37527E7D18553F670085556E /* GTWAOFDirectFile.m in Sources */,
 				37527E7E18553F670085556E /* GTWAOFPage.m in Sources */,
 			);
