@@ -11,10 +11,11 @@
 
 @interface GTWAOFDirectFile : NSObject<GTWAOF> {
     int fd;
-    NSString* _filename;
+//    NSString* _filename;
     NSCache* _pageCache;
 }
 
+@property (readonly) NSString* filename;
 @property dispatch_queue_t updateQueue;
 @property (readonly) NSUInteger pageSize;
 @property (readonly) NSUInteger pageCount;

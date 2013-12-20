@@ -52,7 +52,7 @@ GTWAOFPage* newPageWithChar( GTWAOFUpdateContext *ctx, char c ) {
 void stress (id<GTWAOF> aof) {
     NSUInteger count    = 100000;
     dispatch_queue_t queue     = dispatch_queue_create("us.kasei.sparql.aof.stress", DISPATCH_QUEUE_CONCURRENT);
-    for (NSUInteger i = 0; i < count; i++) {
+    for (NSInteger i = 0; i < count; i++) {
         int r  = rand();
         int count  = 1 + (r % 9);
         char c = '0' + count;
@@ -500,7 +500,7 @@ int main(int argc, const char * argv[]) {
             
             NSMutableArray* rootKeys    = [NSMutableArray array];
             NSMutableArray* rootValues  = [NSMutableArray array];
-            for (NSUInteger i = 0; i < [pages count]; i++) {
+            for (NSInteger i = 0; i < [pages count]; i++) {
                 GTWAOFBTreeNode* child  = pages[i];
                 NSInteger pageID    = child.pageID;
                 NSData* key         = [child maxKey];
