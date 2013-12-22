@@ -38,8 +38,7 @@
  */
 
 - (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx;
-- (GTWMutableAOFBTree*) insertValue:(NSData*)value forKey:(NSData*)key;
-- (GTWMutableAOFBTree*) removeValueForKey:(NSData*)key;
-
+- (BOOL) insertValue:(NSData*)value forKey:(NSData*)key;
+- (BOOL) removeValueForKey:(NSData*)key;
 
 @end

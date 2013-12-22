@@ -101,58 +101,59 @@ static const NSInteger valSize  = 8;
 }
 
 - (void)enumerateKeysAndObjectsMatchingPrefix:(NSData*)prefix usingBlock:(void (^)(NSData*, NSData*, BOOL*))block {
-    GTWAOFBTreeNode* lca    = [self lcaNodeForKeysWithPrefix:prefix];
-    if (lca) {
-        if (lca.type == GTWAOFBTreeLeafNodeType) {
-            __block BOOL seenMatchingKey = NO;
-            [GTWAOFBTree enumerateKeysAndObjectsForNode:lca aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-                if ([key gtw_hasPrefix:prefix]) {
-                    seenMatchingKey = YES;
-                    BOOL localStop   = NO;
-                    block(key, obj, &localStop);
-                    if (localStop)
-                        *stop   = YES;
-                } else {
-                    if (seenMatchingKey) {
-                        NSLog(@"stopped seeing matching keys");
-                        *stop   = YES;
-                    }
-                }
-            }];
-        } else {
-            // TODO: only enumerate on the children of lca that can have matching keys (skip the initial pages that can't match)
-            NSArray* keys       = [lca allKeys];
-            NSArray* pageIDs    = [lca childrenPageIDs];
-            NSInteger startOffset   = 0;
-            for (startOffset = 0; startOffset < [keys count]; startOffset++) {
-                NSData* key = keys[startOffset];
-                if ([key gtw_hasPrefix:prefix]) {
-                    break;
-                }
-            }
-            NSInteger offset;
-            for (offset = startOffset; offset < [pageIDs count]; offset++) {
-                NSNumber* number    = pageIDs[offset];
-                NSInteger pageID    = [number integerValue];
-                GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:lca.pageID fromAOF:_aof];
-                __block BOOL seenMatchingKey    = NO;
-                __block BOOL localStop          = NO;
-                [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+    @autoreleasepool {
+        GTWAOFBTreeNode* lca    = [self lcaNodeForKeysWithPrefix:prefix];
+        if (lca) {
+            if (lca.type == GTWAOFBTreeLeafNodeType) {
+                __block BOOL seenMatchingKey = NO;
+                [GTWAOFBTree enumerateKeysAndObjectsForNode:lca aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
                     if ([key gtw_hasPrefix:prefix]) {
                         seenMatchingKey = YES;
+                        BOOL localStop   = NO;
                         block(key, obj, &localStop);
                         if (localStop)
                             *stop   = YES;
                     } else {
                         if (seenMatchingKey) {
-                            NSLog(@"stopped seeing matching keys");
-                            localStop   = YES;
-                            *stop       = YES;
+//                            NSLog(@"stopped seeing matching keys");
+                            *stop   = YES;
                         }
                     }
                 }];
-                if (localStop)
-                    break;
+            } else {
+                NSArray* keys       = [lca allKeys];
+                NSArray* pageIDs    = [lca childrenPageIDs];
+                NSInteger startOffset   = 0;
+                for (startOffset = 0; startOffset < [keys count]; startOffset++) {
+                    NSData* key = keys[startOffset];
+                    if ([key gtw_hasPrefix:prefix]) {
+                        break;
+                    }
+                }
+                NSInteger offset;
+                for (offset = startOffset; offset < [pageIDs count]; offset++) {
+                    NSNumber* number    = pageIDs[offset];
+                    NSInteger pageID    = [number integerValue];
+                    GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:lca.pageID fromAOF:_aof];
+                    __block BOOL seenMatchingKey    = NO;
+                    __block BOOL localStop          = NO;
+                    [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+                        if ([key gtw_hasPrefix:prefix]) {
+                            seenMatchingKey = YES;
+                            block(key, obj, &localStop);
+                            if (localStop)
+                                *stop   = YES;
+                        } else {
+                            if (seenMatchingKey) {
+//                                NSLog(@"stopped seeing matching keys");
+                                localStop   = YES;
+                                *stop       = YES;
+                            }
+                        }
+                    }];
+                    if (localStop)
+                        break;
+                }
             }
         }
     }
@@ -169,7 +170,7 @@ static const NSInteger valSize  = 8;
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
             GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:node.pageID fromAOF:aof];
-            NSLog(@"found b+ tree child node %@", child);
+//            NSLog(@"found b+ tree child node %@", child);
             __block BOOL localStop  = NO;
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop2) {
                 block(key,obj,&localStop);
@@ -184,3 +185,24 @@ static const NSInteger valSize  = 8;
 
 @end
 
+
+@implementation GTWMutableAOFBTree
+
+- (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx {
+    if (self = [super init]) {
+        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
+    }
+    return self;
+}
+
+- (BOOL) insertValue:(NSData*)value forKey:(NSData*)key {
+    // TODO: implement
+    return NO;
+}
+
+- (BOOL) removeValueForKey:(NSData*)key {
+    // TODO: implement
+    return NO;
+}
+
+@end
