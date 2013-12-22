@@ -250,7 +250,7 @@ static NSUInteger integerFromData(NSData* data) {
     }];
     
     if (pageID >= 0) {
-        GTWAOFBTreeNode* node   = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 keySize:keySize valueSize:valSize fromAOF:_aof];
+        GTWAOFBTreeNode* node   = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:_aof];
         XCTAssertNotNil(node, @"Retrieved leaf node from AOF");
         NSMutableIndexSet* set = [[NSMutableIndexSet alloc] init];
         __block NSUInteger count    = 0;
