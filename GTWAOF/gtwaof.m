@@ -132,6 +132,20 @@ NSUInteger integerFromData(NSData* data) {
     return (NSUInteger) n;
 }
 
+static NSData* hexToBytes (NSString* string) {
+    NSMutableData* data = [NSMutableData data];
+    int idx;
+    for (idx = 0; idx+2 <= string.length; idx+=2) {
+        NSRange range = NSMakeRange(idx, 2);
+        NSString* hexStr = [string substringWithRange:range];
+        NSScanner* scanner = [NSScanner scannerWithString:hexStr];
+        unsigned int intValue;
+        [scanner scanHexInt:&intValue];
+        [data appendBytes:&intValue length:1];
+    }
+    return data;
+}
+
 void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     NSData* data    = p.data;
     char cookie[5] = { 0,0,0,0,0 };
@@ -143,7 +157,6 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
                             @"RDCT": @"Raw Dictionary",
                             @"RQDS": @"Raw Quads",
                             @"RVAL": @"Raw Value",
-                            @"BPTR": @"B+ Tree Root Node",
                             @"BPTI": @"B+ Tree Internal Node",
                             @"BPTL": @"B+ Tree Leaf Node"
                             };
@@ -170,10 +183,13 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         GTWAOFRawQuads* obj         = [[GTWAOFRawQuads alloc] initWithPage:p fromAOF:aof];
         NSUInteger count            = [obj count];
         fprintf(stdout, "    Quads         : %lld\n", (long long)count);
-    } else if ([c rangeOfString:@"BPT[RIL]" options:NSRegularExpressionSearch].location == 0) {
-        GTWAOFBTreeNode* obj         = [[GTWAOFBTreeNode alloc] initWithPage:p parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
+    } else if ([c rangeOfString:@"BPT[IL]" options:NSRegularExpressionSearch].location == 0) {
+        GTWAOFBTreeNode* obj        = [[GTWAOFBTreeNode alloc] initWithPage:p parentID:-1 fromAOF:aof];
         NSUInteger count            = [obj count];
+        NSInteger flags             = [obj flags];
+        fprintf(stdout, "    Flags         : %s\n", (flags & GTWAOFBTreeRoot) ? "None" : "Root");
         fprintf(stdout, "    Keys          : %lld\n", (long long)count);
+        fprintf(stdout, "    Pair sizes    : { %lld, %lld }\n", (long long)obj.keySize, (long long)obj.valSize);
     }
 }
 
@@ -517,6 +533,22 @@ int main(int argc, const char * argv[]) {
             NSLog(@"root node: %@", root);
             return YES;
         }];
+    } else if (!strcmp(op, "btreelca")) {
+        NSInteger pageID    = (NSInteger)atoll(argv[2]);
+        const char* prefixHex   = argv[3];
+        NSData* prefix      = hexToBytes(@(prefixHex));
+        GTWAOFBTree* t      = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
+        GTWAOFBTreeNode* lca    = [t lcaNodeForKeysWithPrefix:prefix];
+        NSLog(@"LCA: %@", lca);
+    } else if (!strcmp(op, "btreematch")) {
+        NSInteger pageID    = (NSInteger)atoll(argv[2]);
+        const char* prefixHex   = argv[3];
+        NSData* prefix      = hexToBytes(@(prefixHex));
+        GTWAOFBTree* t      = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
+        __block NSUInteger count    = 0;
+        [t enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            NSLog(@"[%3lu]\t%@ -> %@", ++count, key, obj);
+        }];
     } else if (!strcmp(op, "btree")) {
         NSInteger pageID    = 0;
         if (argc > 2) {
@@ -549,7 +581,7 @@ int main(int argc, const char * argv[]) {
         if (argc > 2) {
             pageID    = (NSInteger)atoll(argv[2]);
         }
-        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 keySize:keySize valueSize:valSize fromAOF:aof];
+        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
         [b verify];
     } else if (!strcmp(op, "stress")) {
         stress(aof);

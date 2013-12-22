@@ -16,14 +16,15 @@
     int r;
     if (len == alen) {
         r   = memcmp(self.bytes, aData.bytes, len);
+        NSLog(@"same-length: %@ <=> %@ => %d", self, aData, r);
     } else {
         NSUInteger min  = (len < alen) ? len : alen;
         r   = memcmp(self.bytes, aData.bytes, min);
         if (r == 0) {
             if (len < alen) {
-                r   = -1;
+                return NSOrderedAscending;
             } else {
-                r   = 1;
+                return NSOrderedDescending;
             }
         }
     }
@@ -33,6 +34,18 @@
         return NSOrderedAscending;
     } else {
         return NSOrderedDescending;
+    }
+}
+
+- (BOOL) gtw_hasPrefix:(NSData*)aData {
+    NSUInteger len  = [self length];
+    NSUInteger alen = [aData length];
+    if (alen > len)
+        return NO;
+    if (memcmp(self.bytes, aData.bytes, alen)) {
+        return NO;
+    } else {
+        return YES;
     }
 }
 

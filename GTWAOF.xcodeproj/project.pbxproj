@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		370F1302185F75BA00810F2F /* GTWAOFRawValue.m in Sources */ = {isa = PBXBuildFile; fileRef = 370F1301185F75BA00810F2F /* GTWAOFRawValue.m */; };
 		370F1303185F75BA00810F2F /* GTWAOFRawValue.m in Sources */ = {isa = PBXBuildFile; fileRef = 370F1301185F75BA00810F2F /* GTWAOFRawValue.m */; };
+		372CC39818665A4100265B32 /* GTWAOF_BTree_Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 372CC39718665A4100265B32 /* GTWAOF_BTree_Tests.m */; };
 		37527E53185510CC0085556E /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E52185510CC0085556E /* CoreFoundation.framework */; };
 		37527E59185510CC0085556E /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 37527E57185510CC0085556E /* InfoPlist.strings */; };
 		37527E62185510F20085556E /* GTWSWBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E60185510F20085556E /* GTWSWBase.framework */; };
@@ -88,6 +89,7 @@
 /* Begin PBXFileReference section */
 		370F1300185F75BA00810F2F /* GTWAOFRawValue.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFRawValue.h; sourceTree = "<group>"; };
 		370F1301185F75BA00810F2F /* GTWAOFRawValue.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFRawValue.m; sourceTree = "<group>"; };
+		372CC39718665A4100265B32 /* GTWAOF_BTree_Tests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOF_BTree_Tests.m; sourceTree = "<group>"; };
 		37527E4F185510CC0085556E /* GTWAOF.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GTWAOF.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		37527E52185510CC0085556E /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		37527E56185510CC0085556E /* GTWAOF-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GTWAOF-Info.plist"; sourceTree = "<group>"; };
@@ -258,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				37FEA4A3186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m */,
+				372CC39718665A4100265B32 /* GTWAOF_BTree_Tests.m */,
 				37FEA49E186407F800A0BCC2 /* Supporting Files */,
 			);
 			path = "GTWAOF Tests";
@@ -424,6 +427,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				372CC39818665A4100265B32 /* GTWAOF_BTree_Tests.m in Sources */,
 				37FEA4AD18640A9B00A0BCC2 /* GTWAOFQuadStore.m in Sources */,
 				37FEA4AE18640A9B00A0BCC2 /* GTWAOFUpdateContext.m in Sources */,
 				37FEA4AF18640A9B00A0BCC2 /* GTWAOFDirectFile.m in Sources */,
@@ -707,6 +711,7 @@
 				37FEA4A9186407F800A0BCC2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

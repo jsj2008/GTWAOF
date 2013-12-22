@@ -114,6 +114,18 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "mkbtree"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "btreematch"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "5"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "0000000000000001000000000000000200000000000000034e"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

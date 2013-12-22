@@ -89,6 +89,7 @@
 }
 
 - (GTWAOFPage*) readPage: (NSInteger) pageID {
+    NSLog(@"*** reading page %d", (int)pageID);
 	if (pageID >= _pageCount)
 		return nil;
     
