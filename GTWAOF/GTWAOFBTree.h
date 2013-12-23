@@ -17,10 +17,12 @@
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
 
+- (GTWAOFBTreeNode*) root;
 - (GTWAOFBTreeNode*) leafNodeForKey:(NSData*)key;
 - (GTWAOFBTreeNode*) lcaNodeForKeysWithPrefix:(NSData*)prefix;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
 - (void)enumerateKeysAndObjectsMatchingPrefix:(NSData*)prefix usingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
+- (GTWAOFBTree*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
 

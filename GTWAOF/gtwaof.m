@@ -26,6 +26,9 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
 
+#define BTREE_INTERNAL_NODE_COOKIE "BPTI"
+#define BTREE_LEAF_NODE_COOKIE "BPTL"
+
 static const NSInteger keySize  = 32;
 static const NSInteger valSize  = 8;
 
@@ -145,13 +148,28 @@ static NSData* hexToBytes (NSString* string) {
     return data;
 }
 
+void print_digraph_for_btree_node ( id<GTWAOF> aof, FILE* f, GTWAOFBTreeNode* n ) {
+    NSString* nodeName  = [NSString stringWithFormat:@"n%llu", (unsigned long long)n.pageID];
+    const char* name    = [nodeName UTF8String];
+    if ([n isRoot]) {
+        fprintf(f, "\t%s [label=\"%s\"; style=\"bold\"; color=\"red\"; shape=\"square\"]\n", name, name);
+    } else {
+        fprintf(f, "\t%s [label=\"%s\"; color=\"blue\"]\n", name, name);
+    }
+    if (n.type == GTWAOFBTreeInternalNodeType) {
+        NSArray* pageIDs    = [n childrenPageIDs];
+        for (NSNumber* number in pageIDs) {
+            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:[number integerValue] parent:n fromAOF:aof];
+            NSString* childNodeName  = [NSString stringWithFormat:@"n%llu", (unsigned long long)child.pageID];
+            fprintf(f, "\t%s -> %s ;\n", [nodeName UTF8String], [childNodeName UTF8String]);
+        }
+    }
+}
+
 void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     NSData* data    = p.data;
     char cookie[5] = { 0,0,0,0,0 };
     [data getBytes:cookie length:4];
-#define BTREE_ROOT_NODE_COOKIE "BPTR"
-#define BTREE_INTERNAL_NODE_COOKIE "BPTI"
-#define BTREE_LEAF_NODE_COOKIE "BPTL"
     NSDictionary* names = @{
                             @"RDCT": @"Raw Dictionary",
                             @"RQDS": @"Raw Quads",
@@ -185,41 +203,59 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
     } else if ([c rangeOfString:@"BPT[IL]" options:NSRegularExpressionSearch].location == 0) {
         GTWAOFBTreeNode* obj        = [[GTWAOFBTreeNode alloc] initWithPage:p parent:nil fromAOF:aof];
         NSUInteger count            = [obj count];
-        NSInteger flags             = [obj flags];
-        fprintf(stdout, "    Flags         : %s\n", (flags & GTWAOFBTreeRoot) ? "None" : "Root");
+        fprintf(stdout, "    Flags         : %s\n", (obj.isRoot) ? "None" : "Root");
         fprintf(stdout, "    Keys          : %lld\n", (long long)count);
         fprintf(stdout, "    Pair sizes    : { %lld, %lld }\n", (long long)obj.keySize, (long long)obj.valSize);
+        if (obj.isRoot) {
+            NSInteger maxInternal   = obj.maxInternalPageKeys;
+            NSInteger maxLeaf       = obj.maxLeafPageKeys;
+            fprintf(stdout, "    Int. Capacity : %lld\n", (long long)maxInternal);
+            fprintf(stdout, "    Leaf Capacity : %lld\n", (long long)maxLeaf);
+        }
+        if ([c isEqualToString:@"BPTI"]) {
+            NSArray* children   = [obj childrenPageIDs];
+            NSString* list      = [children componentsJoinedByString:@", "];
+            fprintf(stdout, "    Children      : %s\n", [list UTF8String]);
+        }
     }
 }
 
 int main(int argc, const char * argv[]) {
     if (argc < 2) {
+        const char* cmd = argv[0];
         fprintf(stdout, "Usage:\n");
-        fprintf(stdout, "    %s add\n", argv[0]);
-        fprintf(stdout, "    %s list\n", argv[0]);
-        fprintf(stdout, "    %s dict\n", argv[0]);
-        fprintf(stdout, "    %s adddict key=val ...\n", argv[0]);
-        fprintf(stdout, "    %s mkdict key=val ...\n", argv[0]);
-        fprintf(stdout, "    %s mkvalue val\n", argv[0]);
-        fprintf(stdout, "    %s value pageID\n", argv[0]);
-        fprintf(stdout, "    %s term ID ...\n", argv[0]);
-        fprintf(stdout, "    %s quads\n", argv[0]);
-        fprintf(stdout, "    %s addquads s:p:o:g ...\n", argv[0]);
-        fprintf(stdout, "    %s mkquads s:p:o:g ...\n", argv[0]);
-        fprintf(stdout, "    %s import FILE.ttl\n", argv[0]);
-        fprintf(stdout, "    %s delete FILE.ttl\n", argv[0]);
-        fprintf(stdout, "    %s bulkimport FILE.ttl\n", argv[0]);
-        fprintf(stdout, "    %s export\n", argv[0]);
-        fprintf(stdout, "    %s pages\n", argv[0]);
+        fprintf(stdout, "    %s add\n", cmd);
+        fprintf(stdout, "    %s list\n", cmd);
+        fprintf(stdout, "    %s dict\n", cmd);
+        fprintf(stdout, "    %s adddict key=val ...\n", cmd);
+        fprintf(stdout, "    %s mkdict key=val ...\n", cmd);
+        fprintf(stdout, "    %s mkvalue val\n", cmd);
+        fprintf(stdout, "    %s value pageID\n", cmd);
+        fprintf(stdout, "    %s term ID ...\n", cmd);
+        fprintf(stdout, "    %s quads\n", cmd);
+        fprintf(stdout, "    %s addquads s:p:o:g ...\n", cmd);
+        fprintf(stdout, "    %s mkquads s:p:o:g ...\n", cmd);
+        fprintf(stdout, "    %s import FILE.ttl\n", cmd);
+        fprintf(stdout, "    %s delete FILE.ttl\n", cmd);
+        fprintf(stdout, "    %s bulkimport FILE.ttl\n", cmd);
+        fprintf(stdout, "    %s export\n", cmd);
+        fprintf(stdout, "    %s pages\n", cmd);
         return 0;
     }
-    
+
+    int argi    = 1;
+    const char* filename    = "test.db";
+    if (!strcmp(argv[argi], "-s")) {
+        argi++;
+        filename    = argv[argi++];
+    }
+
     double start    = current_time();
     srand([[NSDate date] timeIntervalSince1970]);
-    GTWAOFDirectFile* aof   = [[GTWAOFDirectFile alloc] initWithFilename:@"test.db"];
+    GTWAOFDirectFile* aof   = [[GTWAOFDirectFile alloc] initWithFilename:@(filename)];
     NSLog(@"aof file: %@", aof);
     
-    const char* op  = argv[1];
+    const char* op  = argv[argi++];
     if (!strcmp(op, "add")) {
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
 //            int count  = 1 + (rand() % 4);
@@ -244,17 +280,23 @@ int main(int argc, const char * argv[]) {
         GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
         [d enumerateKeysAndObjectsUsingBlock:^(NSData* key, NSData* obj, BOOL *stop) {
             NSString* k = [[NSString alloc] initWithData:key encoding:NSUTF8StringEncoding];
-            long long bign;
-            [obj getBytes:&bign range:NSMakeRange(0, 8)];
-            long long v = NSSwapBigLongLongToHost(bign);
-            NSString* d = [NSString stringWithFormat:@"%6lld -> %@", v, k];
+            NSString* value;
+            if ([key length] == 8) {
+                long long bign;
+                [obj getBytes:&bign range:NSMakeRange(0, 8)];
+                long long v = NSSwapBigLongLongToHost(bign);
+                value       = [NSString stringWithFormat:@"%6lld", v];
+            } else {
+                value       = [obj description];
+            }
+            NSString* d = [NSString stringWithFormat:@"%@ -> %@", value, k];
             fprintf(stdout, "%s\n", [d UTF8String]);
         }];
     } else if (!strcmp(op, "adddict")) {
         GTWMutableAOFRawDictionary* d  = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
-        for (int i = 2; i < argc; i++) {
-            NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
+        for (; argi < argc; argi++) {
+            NSString* s     = [NSString stringWithFormat:@"%s", argv[argi]];
             NSArray* pair   = [s componentsSeparatedByString:@"="];
             NSString* k     = pair[0];
             NSString* v     = pair[1];
@@ -266,13 +308,13 @@ int main(int argc, const char * argv[]) {
         NSLog(@"appending dictionary: %@", dict);
         [d dictionaryByAddingDictionary:dict];
     } else if (!strcmp(op, "value")) {
-        long long pageID    = atoll(argv[2]);
+        long long pageID    = atoll(argv[argi++]);
         GTWAOFRawValue* v   = [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
         NSData* data        = [v data];
         NSString* s         = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         fprintf(stdout, "%s\n", [s UTF8String]);
     } else if (!strcmp(op, "mkvalue")) {
-        NSString* s     = [NSString stringWithFormat:@"%s", argv[2]];
+        NSString* s     = [NSString stringWithFormat:@"%s", argv[argi++]];
         NSData* data    = [s dataUsingEncoding:NSUTF8StringEncoding];
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
             [GTWMutableAOFRawValue valueWithData:data updateContext:ctx];
@@ -280,8 +322,8 @@ int main(int argc, const char * argv[]) {
         }];
     } else if (!strcmp(op, "mkdict")) {
         NSMutableDictionary* dict   = [NSMutableDictionary dictionary];
-        for (int i = 2; i < argc; i++) {
-            NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
+        for (; argi < argc; argi++) {
+            NSString* s     = [NSString stringWithFormat:@"%s", argv[argi]];
             NSArray* pair   = [s componentsSeparatedByString:@"="];
             NSString* key   = pair[0];
             NSString* val   = pair[1];
@@ -294,7 +336,7 @@ int main(int argc, const char * argv[]) {
             return YES;
         }];
     } else if (!strcmp(op, "term")) {
-        long long n     = atoll(argv[2]);
+        long long n     = atoll(argv[argi++]);
         long long bign  = NSSwapHostLongLongToBig(n);
         NSData* nodeID  = [NSData dataWithBytes:&bign length:8];
         SPKTurtleParser* parser  = [[SPKTurtleParser alloc] init];
@@ -323,8 +365,8 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "addquads")) {
         GTWMutableAOFRawQuads* q  = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:aof];
         NSMutableArray* quads   = [NSMutableArray array];
-        for (int i = 2; i < argc; i++) {
-            NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
+        for (; argi < argc; argi++) {
+            NSString* s     = [NSString stringWithFormat:@"%s", argv[argi]];
             NSArray* tuple  = [s componentsSeparatedByString:@":"];
             NSMutableData* data = [NSMutableData dataWithLength:32];
             for (int j = 0; j < 4; j++) {
@@ -344,8 +386,8 @@ int main(int argc, const char * argv[]) {
         }];
     } else if (!strcmp(op, "mkquads")) {
         NSMutableArray* quads   = [NSMutableArray array];
-        for (int i = 2; i < argc; i++) {
-            NSString* s     = [NSString stringWithFormat:@"%s", argv[i]];
+        for (; argi < argc; argi++) {
+            NSString* s     = [NSString stringWithFormat:@"%s", argv[argi]];
             NSArray* tuple  = [s componentsSeparatedByString:@":"];
             NSMutableData* data = [NSMutableData dataWithLength:32];
             for (int j = 0; j < 4; j++) {
@@ -381,8 +423,8 @@ int main(int argc, const char * argv[]) {
         GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         store.verbose       = YES;
         __block NSError* error;
-        NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
-        const char* basestr = (argc > 3) ? argv[3] : "http://base.example.org/";
+        NSString* filename  = [NSString stringWithFormat:@"%s", argv[argi++]];
+        const char* basestr = (argc > argi) ? argv[argi++] : "http://base.example.org/";
         NSString* base      = [NSString stringWithFormat:@"%s", basestr];
         NSFileHandle* fh    = [NSFileHandle fileHandleForReadingAtPath:filename];
         SPKSPARQLLexer* l   = [[SPKSPARQLLexer alloc] initWithFileHandle:fh];
@@ -414,8 +456,8 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "delete")) {
         GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         __block NSError* error;
-        NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
-        const char* basestr = (argc > 3) ? argv[3] : "http://base.example.org/";
+        NSString* filename  = [NSString stringWithFormat:@"%s", argv[argi++]];
+        const char* basestr = (argc > argi) ? argv[argi++] : "http://base.example.org/";
         NSString* base      = [NSString stringWithFormat:@"%s", basestr];
         NSFileHandle* fh    = [NSFileHandle fileHandleForReadingAtPath:filename];
         SPKSPARQLLexer* l   = [[SPKSPARQLLexer alloc] initWithFileHandle:fh];
@@ -439,8 +481,8 @@ int main(int argc, const char * argv[]) {
             NSLog(@"Could not construct parser");
         }
     } else if (!strcmp(op, "bulkimport")) {
-        NSString* filename  = [NSString stringWithFormat:@"%s", argv[2]];
-        const char* basestr = (argc > 3) ? argv[3] : "http://base.example.org/";
+        NSString* filename  = [NSString stringWithFormat:@"%s", argv[argi++]];
+        const char* basestr = (argc > argi) ? argv[argi++] : "http://base.example.org/";
         NSString* base      = [NSString stringWithFormat:@"%s", basestr];
         NSFileHandle* fh    = [NSFileHandle fileHandleForReadingAtPath:filename];
         SPKSPARQLLexer* l   = [[SPKSPARQLLexer alloc] initWithFileHandle:fh];
@@ -483,11 +525,11 @@ int main(int argc, const char * argv[]) {
     } else if (!strcmp(op, "btreecreate")) {
         NSInteger ksize = 1;
         NSInteger vsize = 1;
-        if (argc > 2) {
-            ksize   = (NSInteger)atoll(argv[2]);
+        if (argc > argi) {
+            ksize   = (NSInteger)atoll(argv[argi++]);
         }
-        if (argc > 3) {
-            vsize   = (NSInteger)atoll(argv[3]);
+        if (argc > argi) {
+            vsize   = (NSInteger)atoll(argv[argi++]);
         }
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
             GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:ksize valueSize:vsize keys:@[] objects:@[] updateContext:ctx];
@@ -498,11 +540,12 @@ int main(int argc, const char * argv[]) {
         NSInteger pageCount = [aof pageCount];
         NSInteger pageID    = pageCount-1;
         GTWMutableAOFBTree* t      = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
-        NSData* key         = hexToBytes(@(argv[2]));
-        NSData* val         = hexToBytes(@(argv[3]));
+        NSData* key         = hexToBytes(@(argv[argi++]));
+        NSData* val         = hexToBytes(@(argv[argi++]));
         NSLog(@"tree: %@", t);
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
             [t insertValue:val forKey:key updateContext:ctx];
+            NSLog(@"root node: %@", [t root]);
             return YES;
         }];
     } else if (!strcmp(op, "mkbtree")) {
@@ -558,37 +601,81 @@ int main(int argc, const char * argv[]) {
             return YES;
         }];
     } else if (!strcmp(op, "btreelca")) {
-        NSInteger pageID    = (NSInteger)atoll(argv[2]);
-        const char* prefixHex   = argv[3];
+        NSInteger pageID    = (NSInteger)atoll(argv[argi++]);
+        const char* prefixHex   = argv[argi++];
         NSData* prefix          = hexToBytes(@(prefixHex));
         GTWAOFBTree* t          = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
         GTWAOFBTreeNode* lca    = [t lcaNodeForKeysWithPrefix:prefix];
         NSLog(@"LCA: %@", lca);
     } else if (!strcmp(op, "btreematch")) {
-        NSInteger pageID        = (NSInteger)atoll(argv[2]);
-        const char* prefixHex   = argv[3];
+        NSInteger pageID        = (NSInteger)atoll(argv[argi++]);
+        const char* prefixHex   = argv[argi++];
         NSData* prefix          = hexToBytes(@(prefixHex));
         GTWAOFBTree* t          = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
         __block NSUInteger count    = 0;
         [t enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
             NSLog(@"[%3lu]\t%@ -> %@", ++count, key, obj);
         }];
+    } else if (!strcmp(op, "dictcompact")) {
+        NSString* newfilename   = @(argv[argi++]);
+        GTWAOFDirectFile* newaof   = [[GTWAOFDirectFile alloc] initWithFilename:newfilename];
+        NSInteger pageCount = [aof pageCount];
+        NSInteger pageID    = pageCount-1;
+        if (argc > argi) {
+            pageID    = (NSInteger)atoll(argv[argi++]);
+        }
+        GTWAOFRawDictionary* dict   = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:aof];
+        [newaof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [dict rewriteWithUpdateContext:ctx];
+            return YES;
+        }];
+    } else if (!strcmp(op, "btreecompact")) {
+        NSString* newfilename   = @(argv[argi++]);
+        GTWAOFDirectFile* newaof   = [[GTWAOFDirectFile alloc] initWithFilename:newfilename];
+        NSInteger pageCount = [aof pageCount];
+        NSInteger pageID    = pageCount-1;
+        if (argc > argi) {
+            pageID    = (NSInteger)atoll(argv[argi++]);
+        }
+        GTWAOFBTree* t  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
+        [newaof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [t rewriteWithUpdateContext:ctx];
+            return YES;
+        }];
+    } else if (!strcmp(op, "btreedot")) {
+        NSInteger pageID;
+        NSInteger pageCount = [aof pageCount];
+        fprintf(stdout, "digraph G {\n");
+        for (pageID = pageCount-1; pageID >= 0; pageID--) {
+            GTWAOFPage* p   = [aof readPage:pageID];
+            NSData* data    = p.data;
+            char cookie[5] = { 0,0,0,0,0 };
+            [data getBytes:cookie length:4];
+            NSData* typedata    = [NSData dataWithBytes:cookie length:4];
+            NSString* type  = [[NSString alloc] initWithData:typedata encoding:4];
+//            NSLog(@"-> %@", type);
+            if ([type hasPrefix:@"BPT"]) {
+                GTWAOFBTreeNode* n  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:Nil fromAOF:aof];
+                print_digraph_for_btree_node(aof, stdout, n);
+            }
+        }
+        fprintf(stdout, "}\n");
     } else if (!strcmp(op, "btree")) {
         NSInteger pageCount = [aof pageCount];
         NSInteger pageID    = pageCount-1;
-        if (argc > 2) {
-            pageID    = (NSInteger)atoll(argv[2]);
+        if (argc > argi) {
+            pageID    = (NSInteger)atoll(argv[argi++]);
         }
         GTWAOFBTree* t      = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:aof];
         NSLog(@"btree: %@", t);
         __block NSUInteger count    = 0;
         [t enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-            NSLog(@"[%3lu]\t%@ -> %@", ++count, key, obj);
+            printf("[%3lu]\t%s -> %s\n", ++count, [[key description] UTF8String], [[obj description] UTF8String]);
         }];
     } else if (!strcmp(op, "btverify")) {
         NSInteger pageID    = 0;
-        if (argc > 2) {
-            pageID    = (NSInteger)atoll(argv[2]);
+        if (argc > argi) {
+            pageID    = (NSInteger)atoll(argv[argi++]);
         }
         GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:aof];
         [b verify];

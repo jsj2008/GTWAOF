@@ -8,6 +8,7 @@
 
 #import "GTWAOFBTree.h"
 #import "NSData+GTWCompare.h"
+#import "GTWAOFUpdateContext.h"
 
 static const NSInteger keySize  = 32;
 static const NSInteger valSize  = 8;
@@ -28,6 +29,10 @@ static const NSInteger valSize  = 8;
         _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parent:nil fromAOF:aof];
     }
     return self;
+}
+
+- (GTWAOFBTreeNode*) root {
+    return _root;
 }
 
 - (GTWAOFBTreeNode*) leafNodeForKey:(NSData*)key {
@@ -178,7 +183,7 @@ static const NSInteger valSize  = 8;
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
             GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:node fromAOF:aof];
-//            NSLog(@"found b+ tree child node %@", child);
+            NSLog(@"found b+ tree child node %@", child);
             __block BOOL localStop  = NO;
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop2) {
                 block(key,obj,&localStop);
@@ -189,6 +194,35 @@ static const NSInteger valSize  = 8;
                 *stop   = YES;
         }];
     }
+}
+
+static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, GTWAOFBTreeNode* node ) {
+    if (node.type == GTWAOFBTreeInternalNodeType) {
+        NSArray* keys   = [node allKeys];
+        NSArray* ids    = [node childrenPageIDs];
+        NSMutableArray* childrenIDs = [NSMutableArray array];
+        NSMutableArray* children    = [NSMutableArray array];
+        for (NSNumber* number in ids) {
+            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:[number integerValue] parent:node fromAOF:aof];
+            GTWAOFBTreeNode* newchild   = copy_btree(aof, ctx, child);
+            [childrenIDs addObject:@(newchild.pageID)];
+            [children addObject:newchild];
+        }
+        GTWAOFBTreeNode* newnode    = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:node.keySize valueSize:node.valSize keys:keys pageIDs:childrenIDs updateContext:ctx];
+        for (GTWAOFBTreeNode* child in children) {
+            [child setParent:newnode];
+        }
+        return newnode;
+    } else {
+        NSArray* keys   = [node allKeys];
+        NSArray* vals   = [node allObjects];
+        return [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:node.keySize valueSize:node.valSize keys:keys objects:vals updateContext:ctx];
+    }
+}
+
+- (GTWAOFBTree*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    GTWAOFBTreeNode* newroot    = copy_btree(_aof, ctx, _root);
+    return [[GTWAOFBTree alloc] initWithRootPage:newroot.page fromAOF:[ctx aof]];
 }
 
 @end
@@ -211,6 +245,7 @@ static const NSInteger valSize  = 8;
         GTWAOFBTreeNode* oldnode    = leaf;
         GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:oldnode addingObject:value forKey:key updateContext:ctx];
         while (![newnode isRoot]) {
+            NSLog(@"recursing to root on value insert");
             GTWAOFBTreeNode* oldparent  = newnode.parent;
             GTWAOFBTreeNode* newparent  = [GTWMutableAOFBTreeNode rewriteInternalNode:oldparent replacingChildID:oldnode.pageID withNewNode:newnode updateContext:ctx];
             newnode = newparent;
@@ -218,6 +253,30 @@ static const NSInteger valSize  = 8;
         }
         
         _root   = newnode;
+    } else {
+        NSLog(@"*** leaf is full; need to split");
+        GTWAOFBTreeNode* splitnode    = leaf;
+        NSArray* pair   = [GTWMutableAOFBTreeNode splitLeafNode:splitnode addingObject:value forKey:key updateContext:ctx];
+        while (![splitnode isRoot]) {
+            GTWAOFBTreeNode* oldparent = splitnode.parent;
+            NSArray* parentpair     = [GTWMutableAOFBTreeNode splitInternalNode:oldparent replacingChildID:splitnode.pageID withNewNodes:pair updateContext:ctx];
+            if ([parentpair count] == 1) {
+                // the parent had room for the new pages. stop recursing.
+                return YES;
+            } else {
+                splitnode   = oldparent;
+                pair        = parentpair;
+//                // TODO: implement recursion
+//                NSLog(@"****** recursing up the tree on insert not implemented");
+//                assert(0);
+            }
+        }
+        // splitting the root
+        GTWAOFBTreeNode* lhs    = pair[0];
+        GTWAOFBTreeNode* rhs    = pair[1];
+        NSArray* rootKeys       = @[[lhs maxKey]];
+        NSArray* rootPageIDs    = @[@(lhs.pageID), @(rhs.pageID)];
+        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:splitnode.keySize valueSize:splitnode.valSize keys:rootKeys pageIDs:rootPageIDs updateContext:ctx];
     }
     
     

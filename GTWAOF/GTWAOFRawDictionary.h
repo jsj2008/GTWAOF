@@ -12,6 +12,8 @@
 
 #define RAW_DICT_COOKIE "RDCT"
 
+@class GTWMutableAOFRawDictionary;
+
 @interface GTWAOFRawDictionary : NSObject {
     id<GTWAOF> _aof;
     GTWAOFPage* _head;
@@ -37,12 +39,14 @@
 - (NSEnumerator*) keyEnumerator;
 - (NSData*)keyForObject:(NSData*)anObject;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;
+- (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
 
 @interface GTWMutableAOFRawDictionary : GTWAOFRawDictionary
 
 + (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx;
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx;
 - (GTWMutableAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
 + (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
 

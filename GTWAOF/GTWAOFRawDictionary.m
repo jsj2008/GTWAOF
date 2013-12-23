@@ -159,12 +159,16 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 }
 
 - (GTWAOFRawDictionary*) previousPage {
-    if (!_prevPage) {
-        // TODO: this shouldn't be a strong ivar reference; have a global/scoped cache that holds the references
-        GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
-        _prevPage   = prev;
+    if (self.previousPageID >= 0) {
+        if (!_prevPage) {
+            // TODO: this shouldn't be a strong ivar reference; have a global/scoped cache that holds the references
+            GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+            _prevPage   = prev;
+        }
+        return _prevPage;
+    } else {
+        return nil;
     }
-    return _prevPage;
 }
 
 - (NSData*)keyForObject:(NSData*)anObject {
@@ -443,6 +447,20 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return data;
 }
 
+- (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    NSInteger prevID            = -1;
+    GTWAOFRawDictionary* prev   = [self previousPage];
+    if (prev) {
+        GTWMutableAOFRawDictionary* newprev    = [prev rewriteWithUpdateContext:ctx];
+        prevID  = newprev.pageID;
+        GTWMutableAOFRawDictionary* newdict    = [newprev dictionaryByAddingDictionary:_pageDict updateContext:ctx];
+        return newdict;
+    } else {
+        GTWMutableAOFRawDictionary* newdict     = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:_pageDict updateContext:ctx];
+        return newdict;
+    }
+}
+
 @end
 
 
@@ -475,35 +493,37 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx.aof];
 }
 
-- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict {
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx {
     NSMutableDictionary* d  = [dict mutableCopy];
-    __block GTWAOFPage* page;
-    NSUInteger pageSize = [_aof pageSize];
-    BOOL ok = [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        int64_t prev  = self.pageID;
-        if ([d count]) {
-            while ([d count]) {
-                NSUInteger lastCount    = [d count];
-                NSData* data    = newDictData(ctx, d, prev, self.verbose);
-                if (lastCount == [d count]) {
-                    NSLog(@"Failed to encode any dictionary terms in page creation loop");
-                    return NO;
-                }
-                if(!data)
-                    return NO;
-                page    = [ctx createPageWithData:data];
-                prev    = page.pageID;
+    int64_t prev  = self.pageID;
+    GTWAOFPage* page;
+    if ([d count]) {
+        while ([d count]) {
+            NSUInteger lastCount    = [d count];
+            NSData* data    = newDictData(ctx, d, prev, self.verbose);
+            if (lastCount == [d count]) {
+                NSLog(@"Failed to encode any dictionary terms in page creation loop");
+                return NO;
             }
-        } else {
-            NSData* empty   = emptyDictData(pageSize, prev, self.verbose);
-            page            = [ctx createPageWithData:empty];
+            if(!data)
+                return NO;
+            page    = [ctx createPageWithData:data];
+            prev    = page.pageID;
         }
+    } else {
+        NSData* empty   = emptyDictData(ctx.pageSize, prev, self.verbose);
+        page            = [ctx createPageWithData:empty];
+    }
+    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:[ctx aof]];
+}
+
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict {
+    __block GTWMutableAOFRawDictionary* newDict;
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        newDict = [self dictionaryByAddingDictionary:dict updateContext:ctx];
         return YES;
     }];
-    if (!ok)
-        return nil;
-    //    NSLog(@"new dictionary head: %@", page);
-    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:_aof];
+    return newDict;
 }
 
 - (GTWMutableAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF>)aof {

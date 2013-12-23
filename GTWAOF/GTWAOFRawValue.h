@@ -11,6 +11,8 @@
 #import "GTWAOFPage.h"
 #define RAW_VALUE_COOKIE "RVAL"
 
+@class GTWMutableAOFRawValue;
+
 @interface GTWAOFRawValue : NSObject {
     id<GTWAOF> _aof;
     GTWAOFPage* _head;
@@ -29,6 +31,8 @@
 
 - (NSUInteger) length;
 - (NSUInteger) pageLength;
+
+- (GTWMutableAOFRawValue*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
 

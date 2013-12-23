@@ -175,6 +175,10 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
     return data;
 }
 
+- (GTWMutableAOFRawValue*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    return [GTWMutableAOFRawValue valueWithData:self.data updateContext:ctx];
+}
+
 @end
 
 @implementation GTWMutableAOFRawValue

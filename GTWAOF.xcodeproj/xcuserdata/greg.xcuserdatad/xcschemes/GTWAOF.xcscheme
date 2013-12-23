@@ -69,31 +69,43 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
+            argument = "-s"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/test.db"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "dict"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "mkvalue"
+            argument = "dictcompact"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "foobar"
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/dict.db"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "value 0"
+            argument = "pages"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "btree"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "quads"
+            argument = "btreeadd"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "mkquads"
+            argument = "ffff"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "1:1:1:1"
+            argument = "00000000000000000000000000001234"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -102,10 +114,6 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/Berlin.ttl"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/big.ttl"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
@@ -121,39 +129,11 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "5"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
             argument = "0000000000000001000000000000000200000000000000034e"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "btreecreate"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "btreeadd"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "01"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "02"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "pages"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "btree"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "2"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>

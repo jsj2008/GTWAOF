@@ -80,6 +80,14 @@
     return (NSInteger) prev;
 }
 
+- (GTWAOFRawQuads*) previousPage {
+    if (self.previousPageID >= 0) {
+        return [[GTWAOFRawQuads alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+    } else {
+        return nil;
+    }
+}
+
 - (GTWAOFPage*) head {
     return _head;
 }
@@ -100,6 +108,21 @@
     [data getBytes:&big_count range:NSMakeRange(COUNT_OFFSET, 8)];
     unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
     return (NSUInteger) count;
+}
+
+- (NSArray*) allObjects {
+    GTWAOFPage* p   = _head;
+    NSData* data    = p.data;
+    NSMutableArray* objects = [NSMutableArray array];
+    NSInteger count = [self count];
+    for (NSInteger i = 0; i < count; i++) {
+        char* buf       = malloc(32);
+        unsigned long offset    = DATA_OFFSET + (i*32);
+        [data getBytes:buf range:NSMakeRange(offset, 32)];
+        NSData* quad    = [NSData dataWithBytesNoCopy:buf length:32];
+        [objects addObject:quad];
+    }
+    return [objects copy];
 }
 
 - (id) objectAtIndex: (NSUInteger) index {
@@ -211,6 +234,21 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
         return nil;
     }
     return data;
+}
+
+- (GTWMutableAOFRawQuads*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    NSInteger prevID        = -1;
+    GTWAOFRawQuads* prev    = [self previousPage];
+    NSArray* quads          = [self allObjects];
+    if (prev) {
+        GTWMutableAOFRawQuads* newprev  = [prev rewriteWithUpdateContext:ctx];
+        prevID  = newprev.pageID;
+        GTWMutableAOFRawQuads* newquads = [newprev mutableQuadsByAddingQuads:quads updateContext:ctx];
+        return newquads;
+    } else {
+        GTWMutableAOFRawQuads* newquads = [GTWMutableAOFRawQuads mutableQuadsWithQuads:quads updateContext:ctx];
+        return newquads;
+    }
 }
 
 @end
