@@ -16,7 +16,6 @@
     int r;
     if (len == alen) {
         r   = memcmp(self.bytes, aData.bytes, len);
-        NSLog(@"same-length: %@ <=> %@ => %d", self, aData, r);
     } else {
         NSUInteger min  = (len < alen) ? len : alen;
         r   = memcmp(self.bytes, aData.bytes, min);

@@ -36,11 +36,11 @@ static NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWAOFBTreeNode
 
-- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parentID:(NSInteger)parentID fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof        = aof;
         _page       = [aof readPage:pageID];
-        _parentID   = parentID;
+        _parent     = parent;
         if (![self _loadType]) {
             return nil;
         }
@@ -49,11 +49,11 @@ static NSUInteger integerFromData(NSData* data) {
     return self;
 }
 
-- (GTWAOFBTreeNode*) initWithPage:(GTWAOFPage*)page parentID:(NSInteger)parentID fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTreeNode*) initWithPage:(GTWAOFPage*)page parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof        = aof;
         _page       = page;
-        _parentID   = parentID;
+        _parent     = parent;
         if (![self _loadType]) {
             return nil;
         }
@@ -81,9 +81,21 @@ static NSUInteger integerFromData(NSData* data) {
     [self _updateConstraints];
 }
 
++ (NSInteger) maxInternalPageKeysForKeySize:(NSInteger)keySize {
+    return ((AOF_PAGE_SIZE-DATA_OFFSET)/(keySize+OFFSET_LENGTH)-1);
+}
+
++ (NSInteger) maxLeafPageKeysForKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize {
+    NSInteger d = keySize+valSize;
+    if (d == 0) {
+        d   = 1;
+    }
+    return ((AOF_PAGE_SIZE-DATA_OFFSET)/d);
+}
+
 - (void) _updateConstraints {
-    _maxInternalPageKeys    = ((AOF_PAGE_SIZE-DATA_OFFSET)/(_keySize+OFFSET_LENGTH)-1);
-    _maxLeafPageKeys        = ((AOF_PAGE_SIZE-DATA_OFFSET)/(_keySize+_valSize));
+    _maxInternalPageKeys    = [[self class] maxInternalPageKeysForKeySize:_keySize];
+    _maxLeafPageKeys        = [[self class] maxLeafPageKeysForKeySize:_keySize valueSize:_valSize];
 }
 
 - (BOOL) _loadType {
@@ -102,7 +114,7 @@ static NSUInteger integerFromData(NSData* data) {
     uint16_t big_vsize  = 0;
     uint32_t big_flags  = 0;
     [data getBytes:&big_flags range:NSMakeRange(FLAGS_OFFSET, 4)];
-    _flags = NSSwapBigLongToHost((unsigned long) big_flags);
+    _flags = NSSwapBigIntToHost(big_flags);
 
     [data getBytes:&big_ksize range:NSMakeRange(SIZES_OFFSET, 2)];
     _keySize = (NSInteger)NSSwapBigShortToHost((unsigned long) big_ksize);
@@ -158,6 +170,19 @@ static NSUInteger integerFromData(NSData* data) {
     }
 }
 
+- (BOOL) isRoot {
+    uint32_t f = (_flags & GTWAOFBTreeRoot);
+    return (f) ? YES : NO;
+}
+
+- (BOOL) isFull {
+    NSUInteger count    = [_keys count];
+    if (self.type == GTWAOFBTreeInternalNodeType) {
+        return (count == self.maxLeafPageKeys);
+    } else {
+        return (count == self.maxInternalPageKeys);
+    }
+}
 
 - (NSInteger) pageID {
     return _page.pageID;
@@ -185,6 +210,14 @@ static NSUInteger integerFromData(NSData* data) {
     return _keys;
 }
 
+- (NSArray*) allObjects {
+    return _objects;
+}
+
+- (instancetype) parent {
+    return _parent;
+}
+
 - (NSArray*) childrenPageIDs {
     return _pageIDs;
 }
@@ -200,7 +233,7 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 - (void)enumerateKeysAndPageIDsUsingBlock:(void (^)(NSData* key, NSInteger pageID, BOOL *stop))block {
-    assert(self.type != GTWAOFBTreeLeafNodeType);
+    assert(self.type == GTWAOFBTreeInternalNodeType);
     NSInteger i;
     NSUInteger count    = [self count];
     BOOL stop           = NO;
@@ -230,8 +263,9 @@ static NSUInteger integerFromData(NSData* data) {
     return;
 }
 
-- (GTWAOFBTreeNode*) childForKey:(NSData*)key {
+- (instancetype) childForKey:(NSData*)key {
     assert(self.type != GTWAOFBTreeLeafNodeType);
+    Class class = [self class];
     NSInteger i;
     NSUInteger count    = [self count];
     for (i = 0; i < count; i++) {
@@ -240,16 +274,16 @@ static NSUInteger integerFromData(NSData* data) {
         if (r != NSOrderedDescending) {
             NSNumber* number    = _pageIDs[i];
             NSInteger pageID    = [number integerValue];
-            return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:self.pageID fromAOF:_aof];
+            return [[class alloc] initWithPageID:pageID parent:self fromAOF:_aof];
         }
     }
     NSNumber* number    = _pageIDs[count];
     NSInteger pageID    = [number integerValue];
-    return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:self.pageID fromAOF:_aof];
+    return [[class alloc] initWithPageID:pageID parent:self fromAOF:_aof];
 }
 
 - (NSString*) description {
-    NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; Page %llu; [0, %@]>", NSStringFromClass([self class]), self, (unsigned long long)self.pageID, [self maxKey]];
+    NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; Page %llu; [0, %@]%@>", NSStringFromClass([self class]), self, (unsigned long long)self.pageID, [self maxKey], [self isRoot] ? @"; ROOT" : @""];
     return description;
 }
 
@@ -266,7 +300,7 @@ static NSUInteger integerFromData(NSData* data) {
         return NO;
     }
 
-    if (self.flags & GTWAOFBTreeRoot) {
+    if ([self isRoot]) {
         if (seenRoot) {
             NSLog(@"Unexpected root found in page %lld after already encountering root", (long long)self.pageID);
             return NO;
@@ -318,7 +352,7 @@ static NSUInteger integerFromData(NSData* data) {
         for (i = 0; i <= count; i++) {
             NSNumber* number    = _pageIDs[i];
             NSInteger pageID    = [number integerValue];
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:self.pageID fromAOF:_aof];
+            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:self fromAOF:_aof];
             BOOL ok = [child verifyHavingSeenRoot:seenRoot];
             if (!ok)
                 return NO;
@@ -349,22 +383,22 @@ static NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWMutableAOFBTreeNode
 
-- (NSData*) newLeafDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keys:(NSArray*)keys objects:(NSArray*)objects verbose:(BOOL)verbose {
++ (NSData*) newLeafDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys objects:(NSArray*)objects verbose:(BOOL)verbose {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
     if (verbose) {
         NSLog(@"creating btree leaf page data");
     }
     uint64_t bigts  = NSSwapHostLongLongToBig(ts);
     int64_t count       = [keys count];
-    int32_t flags       = 0;
+    unsigned int flags  = 0;
     if (root) {
         flags   |= GTWAOFBTreeRoot;
     }
-    int16_t ksize       = (int16_t) self.keySize;
-    int16_t vsize       = (int16_t) self.valSize;
+    int16_t ksize       = (int16_t) keySize;
+    int16_t vsize       = (int16_t) valSize;
 
     int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    int32_t bigflags    = (int32_t) NSSwapHostLongToBig((unsigned long) flags);
+    uint32_t bigflags   = (uint32_t) NSSwapHostIntToBig(flags);
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
     
@@ -378,8 +412,9 @@ static NSUInteger integerFromData(NSData* data) {
     
     __block int offset  = DATA_OFFSET;
     NSInteger i;
-    if (count > self.maxLeafPageKeys) {
-        NSLog(@"Too many key-value pairs (%llu) in new leaf node (max %llu)", (unsigned long long)count, (unsigned long long)self.maxLeafPageKeys);
+    NSInteger maxPageKeys   = [GTWAOFBTreeNode maxLeafPageKeysForKeySize:keySize valueSize:valSize];
+    if (count > maxPageKeys) {
+        NSLog(@"Too many key-value pairs (%llu) in new leaf node (max %llu)", (unsigned long long)count, (unsigned long long)maxPageKeys);
         return nil;
     }
     for (i = 0; i < count; i++) {
@@ -391,20 +426,20 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSUInteger klen = [k length];
         NSUInteger vlen = [v length];
-        if (klen != self.keySize) {
-            NSLog(@"Key length (%llu) is of unexpected size (expecting %llu)", (unsigned long long)klen, (unsigned long long)self.keySize);
+        if (klen != keySize) {
+            NSLog(@"Key length (%llu) is of unexpected size (expecting %llu)", (unsigned long long)klen, (unsigned long long)keySize);
             return nil;
         }
-        if (vlen != self.valSize) {
-            NSLog(@"Value length (%llu) is of unexpected size (expecting %llu)", (unsigned long long)vlen, (unsigned long long)self.valSize);
+        if (vlen != valSize) {
+            NSLog(@"Value length (%llu) is of unexpected size (expecting %llu)", (unsigned long long)vlen, (unsigned long long)valSize);
             return nil;
         }
         
-        [data replaceBytesInRange:NSMakeRange(offset, self.keySize) withBytes:[k bytes]];
-        offset  += self.keySize;
+        [data replaceBytesInRange:NSMakeRange(offset, keySize) withBytes:[k bytes]];
+        offset  += keySize;
         
-        [data replaceBytesInRange:NSMakeRange(offset, self.valSize) withBytes:[v bytes]];
-        offset  += self.valSize;
+        [data replaceBytesInRange:NSMakeRange(offset, valSize) withBytes:[v bytes]];
+        offset  += valSize;
     }
     if ([data length] != pageSize) {
         NSLog(@"page has bad size for quads");
@@ -413,7 +448,7 @@ static NSUInteger integerFromData(NSData* data) {
     return data;
 }
 
-- (NSData*) newInternalDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keys:(NSArray*)keys childrenIDs:(NSArray*)childrenPageIDs verbose:(BOOL)verbose {
++ (NSData*) newInternalDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys childrenIDs:(NSArray*)childrenPageIDs verbose:(BOOL)verbose {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
     if (verbose) {
         NSLog(@"creating btree internal page data with pointers: %@", childrenPageIDs);
@@ -424,11 +459,11 @@ static NSUInteger integerFromData(NSData* data) {
     if (root) {
         flags   |= GTWAOFBTreeRoot;
     }
-    int16_t ksize       = (int16_t) self.keySize;
-    int16_t vsize       = (int16_t) self.valSize;
+    int16_t ksize       = (int16_t) keySize;
+    int16_t vsize       = (int16_t) valSize;
 
     int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    int32_t bigflags    = (int32_t) NSSwapHostLongLongToBig((unsigned long) flags);
+    int32_t bigflags    = (int32_t) NSSwapHostIntToBig((unsigned int) flags);
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
 
@@ -442,7 +477,8 @@ static NSUInteger integerFromData(NSData* data) {
     
     __block int offset  = DATA_OFFSET;
     NSInteger i;
-    if (count > self.maxInternalPageKeys) {
+    NSInteger maxPageKeys   = [GTWAOFBTreeNode maxInternalPageKeysForKeySize:keySize];
+    if (count > maxPageKeys) {
         NSLog(@"Too many key-value pairs (%llu) in new intermediate node", (unsigned long long)count);
         return nil;
     }
@@ -456,7 +492,7 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSUInteger klen = [k length];
         NSUInteger vlen = [v length];
-        if (klen != self.keySize) {
+        if (klen != keySize) {
             NSLog(@"Key length is of unexpected size (%llu)", (unsigned long long)klen);
             return nil;
         }
@@ -465,8 +501,8 @@ static NSUInteger integerFromData(NSData* data) {
             return nil;
         }
         
-        [data replaceBytesInRange:NSMakeRange(offset, self.keySize) withBytes:[k bytes]];
-        offset  += self.keySize;
+        [data replaceBytesInRange:NSMakeRange(offset, keySize) withBytes:[k bytes]];
+        offset  += keySize;
         
         [data replaceBytesInRange:NSMakeRange(offset, OFFSET_LENGTH) withBytes:[v bytes]];
         offset  += OFFSET_LENGTH;
@@ -487,32 +523,67 @@ static NSUInteger integerFromData(NSData* data) {
     return data;
 }
 
-- (GTWMutableAOFBTreeNode*) initInternalWithParentID: (NSInteger) parentID keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys pageIDs:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx {
+- (GTWMutableAOFBTreeNode*) initInternalWithParent:(GTWAOFBTreeNode*)parent keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys pageIDs:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx {
     if (self = [self init]) {
         [self setKeySize:keySize];
         [self setValSize:valSize];
-        BOOL root       = (parentID == -1) ? YES : NO;
-        NSData* data    = [self newInternalDataWithPageSize:[ctx pageSize] root:root keys:keys childrenIDs:objects verbose:NO];
+        BOOL root       = (parent) ? NO : YES;
+        NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:root keySize:keySize valueSize:valSize keys:keys childrenIDs:objects verbose:NO];
         if (!data)
             return nil;
         GTWAOFPage* p   = [ctx createPageWithData: data];
-        self            = [self initWithPage:p parentID:parentID fromAOF:ctx.aof];
+        self            = [self initWithPage:p parent:parent fromAOF:ctx.aof];
     }
     return self;
 }
 
-- (GTWMutableAOFBTreeNode*) initLeafWithParentID: (NSInteger) parentID keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys objects:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx {
-    if (self = [self init]) {
-        [self setKeySize:keySize];
-        [self setValSize:valSize];
-        BOOL root       = (parentID == -1) ? YES : NO;
-        NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:root keys:keys objects:objects verbose:NO];
-        if (!data)
-            return nil;
-        GTWAOFPage* p   = [ctx createPageWithData: data];
-        self    = [self initWithPage:p parentID:parentID fromAOF:ctx.aof];
+- (GTWMutableAOFBTreeNode*) initLeafWithParent:(GTWAOFBTreeNode*)parent keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys objects:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx {
+    BOOL root       = (parent) ? NO : YES;
+    NSData* data    = [[self class] newLeafDataWithPageSize:[ctx pageSize] root:root keySize:keySize valueSize:valSize keys:keys objects:objects verbose:NO];
+    if (!data)
+        return nil;
+    GTWAOFPage* p   = [ctx createPageWithData: data];
+    return [self initWithPage:p parent:parent fromAOF:ctx.aof];
+}
+
++ (GTWMutableAOFBTreeNode*) rewriteInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNode:(GTWAOFBTreeNode*)newNode updateContext:(GTWAOFUpdateContext*) ctx {
+    assert(node.type == GTWAOFBTreeInternalNodeType);
+    NSMutableArray* keys    = [[node allKeys] mutableCopy];
+    NSMutableArray* ids     = [[node childrenPageIDs] mutableCopy];
+    NSUInteger i            = [ids indexOfObject:@(oldID)];
+    if (i == NSNotFound) {
+        NSLog(@"Attempt to rewrite node with unrecognized child ID %llu", (unsigned long long)oldID);
+        return nil;
     }
-    return self;
+    
+    ids[i]          = @(newNode.pageID);
+    if (i < ([keys count]-1)) {
+        keys[i] = [newNode maxKey];
+    }
+    NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:ids verbose:NO];
+    if (!data)
+        return nil;
+    GTWAOFPage* p   = [ctx createPageWithData:data];
+    return [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx.aof];
+}
+
++ (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
+    assert(node.type == GTWAOFBTreeLeafNodeType);
+    // TODO: assert that node isn't full
+    NSMutableArray* keys    = [[node allKeys] mutableCopy];
+    NSMutableArray* vals    = [[node allObjects] mutableCopy];
+    NSUInteger i    = -1;
+    for (i = 0; i < [keys count]; i++) {
+        if ([key gtw_compare:keys[i]] == NSOrderedAscending)
+            break;
+    }
+    [keys insertObject:key atIndex:i];
+    [vals insertObject:object atIndex:i];
+    NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
+    if (!data)
+        return nil;
+    GTWAOFPage* p   = [ctx createPageWithData:data];
+    return [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx.aof];
 }
 
 @end

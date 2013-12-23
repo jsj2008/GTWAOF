@@ -17,7 +17,7 @@ static const NSInteger valSize  = 8;
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof        = aof;
-        _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:-1 fromAOF:aof];
+        _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:aof];
     }
     return self;
 }
@@ -25,9 +25,17 @@ static const NSInteger valSize  = 8;
 - (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
-        _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parentID:-1 fromAOF:aof];
+        _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parent:nil fromAOF:aof];
     }
     return self;
+}
+
+- (GTWAOFBTreeNode*) leafNodeForKey:(NSData*)key {
+    GTWAOFBTreeNode* node   = _root;
+    while (node.type == GTWAOFBTreeInternalNodeType) {
+        node    = [node childForKey:key];
+    }
+    return node;
 }
 
 - (GTWAOFBTreeNode*) lcaNodeForKeysWithPrefix:(NSData*)prefix {
@@ -66,7 +74,7 @@ static const NSInteger valSize  = 8;
                 NSArray* childrenIDs    = [node childrenPageIDs];
                 NSNumber* number        = childrenIDs[siblingIndex];
                 NSInteger childPageID   = [number integerValue];
-                GTWAOFBTreeNode* sibling  = [[GTWAOFBTreeNode alloc] initWithPageID:childPageID parentID:node.pageID fromAOF:_aof];
+                GTWAOFBTreeNode* sibling  = [[GTWAOFBTreeNode alloc] initWithPageID:childPageID parent:node fromAOF:_aof];
                 NSData* siblingMinKey   = [sibling minKey];
     //            NSLog(@"sibling node has min-key: %@", siblingMinKey);
                 if ([siblingMinKey gtw_hasPrefix:prefix]) {
@@ -134,7 +142,7 @@ static const NSInteger valSize  = 8;
                 for (offset = startOffset; offset < [pageIDs count]; offset++) {
                     NSNumber* number    = pageIDs[offset];
                     NSInteger pageID    = [number integerValue];
-                    GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:lca.pageID fromAOF:_aof];
+                    GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:lca fromAOF:_aof];
                     __block BOOL seenMatchingKey    = NO;
                     __block BOOL localStop          = NO;
                     [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
@@ -169,7 +177,7 @@ static const NSInteger valSize  = 8;
         [node enumerateKeysAndObjectsUsingBlock:block];
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parentID:node.pageID fromAOF:aof];
+            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:node fromAOF:aof];
 //            NSLog(@"found b+ tree child node %@", child);
             __block BOOL localStop  = NO;
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop2) {
@@ -190,19 +198,73 @@ static const NSInteger valSize  = 8;
 
 - (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx {
     if (self = [super init]) {
-        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParentID:-1 keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
+        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
     }
     return self;
 }
 
-- (BOOL) insertValue:(NSData*)value forKey:(NSData*)key {
+- (BOOL) insertValue:(NSData*)value forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
+    // TODO: implement
+    
+    GTWAOFBTreeNode* leaf   = [self leafNodeForKey:key];
+    if (!leaf.isFull) {
+        GTWAOFBTreeNode* oldnode    = leaf;
+        GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:oldnode addingObject:value forKey:key updateContext:ctx];
+        while (![newnode isRoot]) {
+            GTWAOFBTreeNode* oldparent  = newnode.parent;
+            GTWAOFBTreeNode* newparent  = [GTWMutableAOFBTreeNode rewriteInternalNode:oldparent replacingChildID:oldnode.pageID withNewNode:newnode updateContext:ctx];
+            newnode = newparent;
+            oldnode = oldparent;
+        }
+        
+        _root   = newnode;
+    }
+    
+    
+    /*
+     Find leaf for value
+     If leaf is not full
+        create new node with the old leaf data and the new element
+        rewrite path to root with new pointers
+     else
+        create two new nodes, and distribute leaf data and new element between them
+        if parent is not full
+            replace leaf pointer in parent with two new node pointers
+            done
+        else
+            recurse, splitting parent
+        end
+     end
+     
+     if root needs a split, create a new root
+     */
+    
+    
+    
+    
+    
+    return NO;
+}
+
+- (BOOL) removeValueForKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
     // TODO: implement
     return NO;
 }
 
-- (BOOL) removeValueForKey:(NSData*)key {
-    // TODO: implement
-    return NO;
-}
 
 @end
+
+
+
+/**
+ - create new root node from old root node (adding one new child pageID)
+ - split root node into two new internal nodes (adding one new and replacing one old child pageIDs) and create new root node
+ - create new internal node from old internal node (adding one new child pageID)
+ - split internal node into two new internal nodes (adding one new and replacing one old child pageIDs)
+ - create new leaf node from old leaf node (adding one new object value)
+ 
+ trivial case where root is a leaf:
+ - split root node into two new leaf nodes (adding one new object value) and create new root node
+ 
+ */
+
