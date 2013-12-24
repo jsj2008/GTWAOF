@@ -248,7 +248,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 
 - (GTWAOFBTree*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
     GTWAOFBTreeNode* newroot    = copy_btree(_aof, ctx, _root);
-    return [[GTWAOFBTree alloc] initWithRootPage:newroot.page fromAOF:[ctx aof]];
+    return [[GTWAOFBTree alloc] initWithRootPage:newroot.page fromAOF:ctx];
 }
 
 @end

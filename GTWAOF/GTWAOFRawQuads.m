@@ -289,19 +289,23 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
 
 + (GTWMutableAOFRawQuads*) mutableQuadsWithQuads:(NSArray *)quads updateContext:(GTWAOFUpdateContext*) ctx {
     GTWAOFPage* page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:-1 updateContext:ctx];
-    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx.aof];
+    GTWMutableAOFRawQuads* n    = [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 - (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads updateContext:(GTWAOFUpdateContext*) ctx {
     int64_t prev  = self.pageID;
     GTWAOFPage* page    = [GTWMutableAOFRawQuads quadsPageWithQuads:quads previousPageID:prev updateContext:ctx];
     //    NSLog(@"new quads head: %@", page);
-    return [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx.aof];
+    GTWMutableAOFRawQuads* n    = [[GTWMutableAOFRawQuads alloc] initWithPage:page fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 - (GTWMutableAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
-        _aof    = aof;
+        self.aof    = aof;
         _head   = nil;
         NSInteger pageID;
         NSInteger pageCount = [aof pageCount];
@@ -319,7 +323,7 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
         
         if (!_head) {
             __block GTWMutableAOFRawQuads* q;
-            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
                 q   = [GTWMutableAOFRawQuads mutableQuadsWithQuads:@[] updateContext:ctx];
                 return YES;
             }];

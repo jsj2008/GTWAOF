@@ -14,8 +14,7 @@
 
 @class GTWMutableAOFRawDictionary;
 
-@interface GTWAOFRawDictionary : NSObject {
-    id<GTWAOF> _aof;
+@interface GTWAOFRawDictionary : NSObject<GTWAOFBackedObject> {
     GTWAOFPage* _head;
     NSDictionary* _pageDict;
     NSDictionary* _revPageDict;
@@ -25,6 +24,7 @@
 }
 
 @property BOOL verbose;
+@property (readwrite) id<GTWAOF> aof;
 
 - (NSDate*) lastModified;
 - (NSUInteger) count;

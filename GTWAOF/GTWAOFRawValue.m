@@ -206,7 +206,9 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
 + (GTWMutableAOFRawValue*) valueWithData:(NSData*) data updateContext:(GTWAOFUpdateContext*) ctx {
     GTWAOFPage* page    = [GTWMutableAOFRawValue valuePageWithData:data updateContext:ctx];
     //    NSLog(@"new quads head: %@", page);
-    return [[GTWMutableAOFRawValue alloc] initWithPage:page fromAOF:ctx.aof];
+    GTWMutableAOFRawValue* n    = [[GTWMutableAOFRawValue alloc] initWithPage:page fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 @end

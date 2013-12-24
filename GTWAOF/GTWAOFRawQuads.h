@@ -11,12 +11,12 @@
 #import "GTWAOFPage.h"
 #define RAW_QUADS_COOKIE "RQDS"
 
-@interface GTWAOFRawQuads : NSObject {
-    id<GTWAOF> _aof;
+@interface GTWAOFRawQuads : NSObject<GTWAOFBackedObject> {
     GTWAOFPage* _head;
 }
 
 @property BOOL verbose;
+@property (readwrite) id<GTWAOF> aof;
 
 - (NSDate*) lastModified;
 - (NSInteger) pageID;

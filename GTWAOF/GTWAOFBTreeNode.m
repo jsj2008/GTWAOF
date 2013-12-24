@@ -530,7 +530,8 @@ static NSUInteger integerFromData(NSData* data) {
         if (!data)
             return nil;
         GTWAOFPage* p   = [ctx createPageWithData: data];
-        self            = [self initWithPage:p parent:parent fromAOF:ctx.aof];
+        self            = [self initWithPage:p parent:parent fromAOF:ctx];
+        [ctx registerPageObject:self];
     }
     return self;
 }
@@ -541,7 +542,9 @@ static NSUInteger integerFromData(NSData* data) {
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData: data];
-    return [self initWithPage:p parent:parent fromAOF:ctx.aof];
+    self    = [self initWithPage:p parent:parent fromAOF:ctx];
+    [ctx registerPageObject:self];
+    return self;
 }
 
 + (GTWMutableAOFBTreeNode*) rewriteInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNode:(GTWAOFBTreeNode*)newNode updateContext:(GTWAOFUpdateContext*) ctx {
@@ -562,7 +565,9 @@ static NSUInteger integerFromData(NSData* data) {
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData:data];
-    return [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx.aof];
+    GTWMutableAOFBTreeNode* n     = [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 + (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
@@ -582,7 +587,9 @@ static NSUInteger integerFromData(NSData* data) {
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData:data];
-    return [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx.aof];
+    GTWMutableAOFBTreeNode* n   = [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 + (NSArray*) splitLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
@@ -615,8 +622,11 @@ static NSUInteger integerFromData(NSData* data) {
     if (!(lpage && rpage))
         return nil;
     
-    GTWMutableAOFBTreeNode* lhs = [[GTWMutableAOFBTreeNode alloc] initWithPage:lpage parent:node.parent fromAOF:ctx.aof];
-    GTWMutableAOFBTreeNode* rhs = [[GTWMutableAOFBTreeNode alloc] initWithPage:rpage parent:node.parent fromAOF:ctx.aof];
+    GTWMutableAOFBTreeNode* lhs = [[GTWMutableAOFBTreeNode alloc] initWithPage:lpage parent:node.parent fromAOF:ctx];
+    GTWMutableAOFBTreeNode* rhs = [[GTWMutableAOFBTreeNode alloc] initWithPage:rpage parent:node.parent fromAOF:ctx];
+    
+    [ctx registerPageObject:lhs];
+    [ctx registerPageObject:rhs];
     
     return @[lhs, rhs];
 }
@@ -674,8 +684,8 @@ static NSUInteger integerFromData(NSData* data) {
         if (!(lpage && rpage))
             return nil;
         
-        GTWAOFBTreeNode* lnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:lpage parent:node.parent fromAOF:ctx.aof];
-        GTWAOFBTreeNode* rnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:rpage parent:node.parent fromAOF:ctx.aof];
+        GTWAOFBTreeNode* lnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:lpage parent:node.parent fromAOF:ctx];
+        GTWAOFBTreeNode* rnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:rpage parent:node.parent fromAOF:ctx];
         [pair addObject:lnode];
         [pair addObject:rnode];
     } else {
@@ -687,10 +697,13 @@ static NSUInteger integerFromData(NSData* data) {
         if (!page)
             return nil;
         
-        GTWAOFBTreeNode* newNode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:page parent:node.parent fromAOF:ctx.aof];
+        GTWAOFBTreeNode* newNode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:page parent:node.parent fromAOF:ctx];
         [pair addObject:newNode];
     }
     
+    for (id n in pair) {
+        [ctx registerPageObject:n];
+    }
     return [pair copy];
 }
 

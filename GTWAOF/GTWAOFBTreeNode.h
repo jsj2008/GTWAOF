@@ -22,13 +22,13 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
     GTWAOFBTreeRoot = 1
 };
 
-@interface GTWAOFBTreeNode : NSObject {
-    id<GTWAOF> _aof;
+@interface GTWAOFBTreeNode : NSObject<GTWAOFBackedObject> {
     NSArray* _keys;
     NSArray* _objects;
     NSArray* _pageIDs;
 }
 
+@property (readwrite) id<GTWAOF> aof;
 @property (readonly) GTWAOFPage* page;
 @property (readonly) NSInteger flags;
 @property (readonly) NSInteger keySize;

@@ -181,6 +181,9 @@
                     }
                 }
                 _pageCount  += [pages count];
+                for (id<GTWAOFBackedObject> object in ctx.registeredObjects) {
+                    object.aof  = self;
+                }
             } else {
                 NSLog(@"update is empty");
             }

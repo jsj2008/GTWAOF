@@ -21,3 +21,7 @@
 - (BOOL)updateWithBlock:(BOOL(^)(GTWAOFUpdateContext* ctx))block;
 
 @end
+
+@protocol GTWAOFBackedObject <NSObject>
+@property (readwrite) id<GTWAOF> aof;
+@end

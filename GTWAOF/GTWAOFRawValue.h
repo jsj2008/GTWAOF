@@ -13,12 +13,12 @@
 
 @class GTWMutableAOFRawValue;
 
-@interface GTWAOFRawValue : NSObject {
-    id<GTWAOF> _aof;
+@interface GTWAOFRawValue : NSObject<GTWAOFBackedObject> {
     GTWAOFPage* _head;
 }
 
 @property BOOL verbose;
+@property (readwrite) id<GTWAOF> aof;
 @property NSData* data;
 
 - (NSDate*) lastModified;

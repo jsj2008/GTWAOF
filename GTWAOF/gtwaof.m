@@ -48,7 +48,7 @@ double elapsed_time ( double start ) {
 }
 
 GTWAOFPage* newPageWithChar( GTWAOFUpdateContext *ctx, char c ) {
-    NSUInteger pageSize = [ctx.aof pageSize];
+    NSUInteger pageSize = [ctx pageSize];
     char* buf  = malloc(pageSize);
     memset(buf, c, pageSize);
     NSData* data   = [NSData dataWithBytesNoCopy:buf length:pageSize];

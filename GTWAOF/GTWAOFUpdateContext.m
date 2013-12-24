@@ -12,9 +12,10 @@
 
 - (GTWAOFUpdateContext*) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
-        self.aof    = aof;
-        nextPageID  = [aof pageCount];
+        _aof            = aof;
+        nextPageID      = [aof pageCount];
         _createdPages   = [NSMutableArray array];
+        _registeredObjects  = [NSMutableSet set];
     }
     return self;
 }
@@ -23,8 +24,19 @@
     return [_aof pageSize];
 }
 
+- (NSUInteger) pageCount {
+    return nextPageID;
+}
+
 - (GTWAOFPage*) readPage: (NSInteger) pageID {
-    return [self.aof readPage:pageID];
+    // TODO: created pages should be stored so that direct access by pageID is possible
+    for (GTWAOFPage* p in _createdPages) {
+        NSInteger pid    = p.pageID;
+        if (pid == pageID) {
+            return p;
+        }
+    }
+    return [_aof readPage:pageID];
 }
 
 - (GTWAOFPage*) createPageWithData: (NSData*)data {
@@ -32,6 +44,14 @@
     GTWAOFPage* page    = [[GTWAOFPage alloc] initWithPageID:pageID data:data committed:NO];
     [_createdPages addObject:page];
     return page;
+}
+
+- (BOOL)updateWithBlock:(BOOL(^)(GTWAOFUpdateContext* ctx))block {
+    @throw [NSException exceptionWithName:@"us.kasei.sparql.aof.updatecontext" reason:@"Cannot run nested update blocks" userInfo:@{}];
+}
+
+- (void) registerPageObject:(id)object {
+    [_registeredObjects addObject:object];
 }
 
 @end

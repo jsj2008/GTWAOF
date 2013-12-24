@@ -490,7 +490,9 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
 + (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx; {
     GTWAOFPage* page    = [GTWMutableAOFRawDictionary dictionaryPageWithDictionary:dict updateContext:ctx];
     //    NSLog(@"new dictionary head: %@", page);
-    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx.aof];
+    GTWMutableAOFRawDictionary* n   = [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx {
@@ -514,12 +516,14 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         NSData* empty   = emptyDictData(ctx.pageSize, prev, self.verbose);
         page            = [ctx createPageWithData:empty];
     }
-    return [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:[ctx aof]];
+    GTWMutableAOFRawDictionary* n   = [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
 }
 
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict {
     __block GTWMutableAOFRawDictionary* newDict;
-    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         newDict = [self dictionaryByAddingDictionary:dict updateContext:ctx];
         return YES;
     }];
@@ -528,7 +532,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
 
 - (GTWMutableAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
-        _aof    = aof;
+        self.aof    = aof;
         _head   = nil;
         NSInteger pageID;
         NSInteger pageCount = [aof pageCount];

@@ -10,16 +10,18 @@
 #import "GTWAOF.h"
 #import "GTWAOFPage.h"
 
-@interface GTWAOFUpdateContext : NSObject {
+@interface GTWAOFUpdateContext : NSObject<GTWAOF> {
     uint64_t nextPageID;
+    id<GTWAOF> _aof;
 }
 
-@property id<GTWAOF> aof;
+@property NSMutableSet* registeredObjects;
 @property NSMutableArray* createdPages;
 
 - (NSUInteger) pageSize;
 - (GTWAOFUpdateContext*) initWithAOF: (id<GTWAOF>) aof;
 - (GTWAOFPage*) readPage: (NSInteger) pageID;
 - (GTWAOFPage*) createPageWithData: (NSData*)data;
+- (void) registerPageObject:(id)object;
 
 @end

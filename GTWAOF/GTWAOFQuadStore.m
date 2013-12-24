@@ -408,15 +408,18 @@ static NSUInteger integerFromData(NSData* data) {
     GTWMutableAOFBTree* btree   = _mutableBtree;
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+        for (NSData* quadData in quadsData) {
+            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
+        }
         return YES;
     }];
     // TODO: this should all happen within one update operation, but there's currently no way to load pages from an uncommitted updateContext
-    for (NSData* quadData in quadsData) {
-        [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
-            return YES;
-        }];
-    }
+//    for (NSData* quadData in quadsData) {
+//        [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+//            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
+//            return YES;
+//        }];
+//    }
     _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
     if ([map count]) {
