@@ -413,9 +413,17 @@ int main(int argc, const char * argv[]) {
             NSLog(@"Failed to create quad store object");
             return 1;
         }
+        SPKTurtleParser* parser  = [[SPKTurtleParser alloc] init];
+        id<GTWTerm> s, p, o, g;
+        if (argc > argi) {
+            const char* ss  = argv[argi++];
+            s   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+        }
         NSError* error;
         double start_export = current_time();
-        [store enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:^(id<GTWQuad> q) {
+        NSDate* date    = [store lastModifiedDateForQuadsMatchingSubject:s predicate:p object:o graph:g error:&error];
+        NSLog(@"Last-Modified: %@", date);
+        [store enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
             fprintf(stdout, "%s\n", [[q description] UTF8String]);
         } error:&error];
         fprintf(stderr, "export time: %lf\n", elapsed_time(start_export));

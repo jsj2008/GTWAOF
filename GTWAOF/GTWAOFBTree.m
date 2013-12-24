@@ -15,6 +15,32 @@ static const NSInteger valSize  = 8;
 
 @implementation GTWAOFBTree
 
+- (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+    if (self = [self init]) {
+        _aof    = aof;
+        _root   = nil;
+        NSInteger pageID;
+        NSInteger pageCount = [aof pageCount];
+        for (pageID = pageCount-1; pageID >= 0; pageID--) {
+            //            NSLog(@"Checking block %lu for dictionary head", pageID);
+            GTWAOFPage* p   = [aof readPage:pageID];
+            NSData* data    = p.data;
+            char cookie[5] = { 0,0,0,0,0 };
+            [data getBytes:cookie length:4];
+            if (!strncmp(cookie, BTREE_INTERNAL_NODE_COOKIE, 4) || !strncmp(cookie, BTREE_LEAF_NODE_COOKIE, 4)) {
+                _root   = [[GTWAOFBTreeNode alloc] initWithPage:p parent:nil fromAOF:aof];
+                break;
+            }
+        }
+        
+        if (!_root) {
+            NSLog(@"Failed to find a B+ Tree page in AOF file");
+            return nil;
+        }
+    }
+    return self;
+}
+
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof        = aof;
@@ -229,6 +255,36 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 
 
 @implementation GTWMutableAOFBTree
+
+- (GTWMutableAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+    if (self = [self init]) {
+        _aof    = aof;
+        _root   = nil;
+        NSInteger pageID;
+        NSInteger pageCount = [aof pageCount];
+        for (pageID = pageCount-1; pageID >= 0; pageID--) {
+            //            NSLog(@"Checking block %lu for dictionary head", pageID);
+            GTWAOFPage* p   = [aof readPage:pageID];
+            NSData* data    = p.data;
+            char cookie[5] = { 0,0,0,0,0 };
+            [data getBytes:cookie length:4];
+            if (!strncmp(cookie, BTREE_INTERNAL_NODE_COOKIE, 4) || !strncmp(cookie, BTREE_LEAF_NODE_COOKIE, 4)) {
+                _root   = [[GTWAOFBTreeNode alloc] initWithPage:p parent:nil fromAOF:aof];
+                break;
+            }
+        }
+        
+        if (!_root) {
+            __block GTWMutableAOFBTreeNode* root;
+            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:32 valueSize:0 keys:@[] objects:@[] updateContext:ctx];
+                return YES;
+            }];
+            _root   = root;
+        }
+    }
+    return self;
+}
 
 - (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx {
     if (self = [super init]) {

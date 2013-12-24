@@ -12,11 +12,13 @@
 #import "GTWAOFDirectFile.h"
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFRawQuads.h"
+#import "GTWAOFBTree.h"
 
 @interface GTWAOFQuadStore : NSObject<GTWQuadStore> {
     id<GTWAOF> _aof;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
+    GTWAOFBTree* _btreeSPOG;
     NSCache* _termCache;
 }
 
@@ -32,6 +34,7 @@
     NSMutableArray* _bulkQuads;
     GTWMutableAOFRawDictionary* _mutableDict;
     GTWMutableAOFRawQuads* _mutableQuads;
+    GTWMutableAOFBTree* _mutableBtree;
 }
 
 @property BOOL bulkLoading;

@@ -210,13 +210,14 @@
 			children = (
 				37527E55185510CC0085556E /* Supporting Files */,
 				37527E64185511660085556E /* GTWAOF.h */,
-				3758BB2A186900BC008B0185 /* Database Page Management */,
-				3758BB2818690095008B0185 /* Page Types */,
-				3758BB29186900A8008B0185 /* Utilities */,
 				37527E93185682D20085556E /* GTWAOFQuadStore.h */,
 				37527E94185682D20085556E /* GTWAOFQuadStore.m */,
-				375B76E11863A9B200F1CE1E /* GTWAOFBTree.h */,
-				375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */,
+				3758BB2A186900BC008B0185 /* Database Page Management */,
+				3758BB2C1869256E008B0185 /* Quads */,
+				3758BB2818690095008B0185 /* Dictionary */,
+				3758BB2D18692577008B0185 /* Value */,
+				3758BB29186900A8008B0185 /* Utilities */,
+				3758BB2B18692561008B0185 /* B+ Tree */,
 			);
 			path = GTWAOF;
 			sourceTree = "<group>";
@@ -239,19 +240,13 @@
 			path = gtwaof;
 			sourceTree = "<group>";
 		};
-		3758BB2818690095008B0185 /* Page Types */ = {
+		3758BB2818690095008B0185 /* Dictionary */ = {
 			isa = PBXGroup;
 			children = (
 				37527E7F185584270085556E /* GTWAOFRawDictionary.h */,
 				37527E80185584270085556E /* GTWAOFRawDictionary.m */,
-				37527E8F18564EE80085556E /* GTWAOFRawQuads.h */,
-				37527E9018564EE80085556E /* GTWAOFRawQuads.m */,
-				370F1300185F75BA00810F2F /* GTWAOFRawValue.h */,
-				370F1301185F75BA00810F2F /* GTWAOFRawValue.m */,
-				375B76D918626A8100F1CE1E /* GTWAOFBTreeNode.h */,
-				375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */,
 			);
-			name = "Page Types";
+			name = Dictionary;
 			sourceTree = "<group>";
 		};
 		3758BB29186900A8008B0185 /* Utilities */ = {
@@ -278,6 +273,35 @@
 				37527E66185515C10085556E /* GTWAOFPage.m */,
 			);
 			name = "Database Page Management";
+			sourceTree = "<group>";
+		};
+		3758BB2B18692561008B0185 /* B+ Tree */ = {
+			isa = PBXGroup;
+			children = (
+				375B76D918626A8100F1CE1E /* GTWAOFBTreeNode.h */,
+				375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */,
+				375B76E11863A9B200F1CE1E /* GTWAOFBTree.h */,
+				375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */,
+			);
+			name = "B+ Tree";
+			sourceTree = "<group>";
+		};
+		3758BB2C1869256E008B0185 /* Quads */ = {
+			isa = PBXGroup;
+			children = (
+				37527E8F18564EE80085556E /* GTWAOFRawQuads.h */,
+				37527E9018564EE80085556E /* GTWAOFRawQuads.m */,
+			);
+			name = Quads;
+			sourceTree = "<group>";
+		};
+		3758BB2D18692577008B0185 /* Value */ = {
+			isa = PBXGroup;
+			children = (
+				370F1300185F75BA00810F2F /* GTWAOFRawValue.h */,
+				370F1301185F75BA00810F2F /* GTWAOFRawValue.m */,
+			);
+			name = Value;
 			sourceTree = "<group>";
 		};
 		37FEA49D186407F800A0BCC2 /* GTWAOF Tests */ = {

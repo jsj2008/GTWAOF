@@ -14,6 +14,7 @@
     GTWAOFBTreeNode* _root;
 }
 
+- (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof;
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
 

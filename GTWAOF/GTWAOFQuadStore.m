@@ -72,6 +72,7 @@ static NSUInteger integerFromData(NSData* data) {
             return nil;
         _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
         _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:_aof];
     }
     return self;
 }
@@ -81,6 +82,7 @@ static NSUInteger integerFromData(NSData* data) {
         _aof   = aof;
         _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
         _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:_aof];
     }
     return self;
 }
@@ -160,38 +162,54 @@ static NSUInteger integerFromData(NSData* data) {
     return term;
 }
 
-- (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    return [self enumerateQuadsWithBlock:^(id<GTWQuad> t){
-        if (s && !([s isKindOfClass:[GTWVariable class]])) {
-            if (![s isEqual:t.subject])
-                return;
-        }
+- (NSData*) spogPrefixMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
+    NSMutableData* prefix   = [NSMutableData data];
+    if (s && !([s isKindOfClass:[GTWVariable class]])) {
+        [prefix appendData: [_dict objectForKey:[self dataFromTerm:s]]];
         if (p && !([p isKindOfClass:[GTWVariable class]])) {
-            if (![p isEqual:t.predicate])
-                return;
+            [prefix appendData: [_dict objectForKey:[self dataFromTerm:p]]];
+            if (o && !([o isKindOfClass:[GTWVariable class]])) {
+                [prefix appendData: [_dict objectForKey:[self dataFromTerm:o]]];
+                if (g && !([g isKindOfClass:[GTWVariable class]])) {
+                    [prefix appendData: [_dict objectForKey:[self dataFromTerm:g]]];
+                }
+            }
         }
-        if (o && !([o isKindOfClass:[GTWVariable class]])) {
-            if (![o isEqual:t.object])
-                return;
-        }
-        if (g && !([g isKindOfClass:[GTWVariable class]])) {
-            if (![g isEqual:t.graph])
-                return;
-        }
-        //        NSLog(@"enumerating matching quad: %@", q);
-        block(t);
-    } error: error];
+    }
+    return [prefix copy];
 }
 
-- (BOOL) enumerateQuadsWithBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
+- (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
     SPKTurtleParser* parser = [[SPKTurtleParser alloc] init];
     parser.baseIRI               = [[GTWIRI alloc] initWithValue:@"http://base.example.org/"];
-    __block BOOL ok         = YES;
     NSCache* cache          = [[NSCache alloc] init];
     [cache setCountLimit:64];
     GTWAOFRawDictionary* dict   = _dict;
-    [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-        NSData* data        = obj;
+    
+    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
+    
+    void (^testQuad)(id<GTWQuad>) = ^(id<GTWQuad> q) {
+        if (s && !([s isKindOfClass:[GTWVariable class]])) {
+            if (![s isEqual:q.subject])
+                return;
+        }
+        if (p && !([p isKindOfClass:[GTWVariable class]])) {
+            if (![p isEqual:q.predicate])
+                return;
+        }
+        if (o && !([o isKindOfClass:[GTWVariable class]])) {
+            if (![o isEqual:q.object])
+                return;
+        }
+        if (g && !([g isKindOfClass:[GTWVariable class]])) {
+            if (![g isEqual:q.graph])
+                return;
+        }
+        //        NSLog(@"enumerating matching quad: %@", q);
+        block(q);
+    };
+    
+    id<GTWQuad> (^dataToQuad)(NSData*) = ^id<GTWQuad>(NSData* data) {
         NSData* skey        = [data subdataWithRange:NSMakeRange(0, 8)];
         NSData* pkey        = [data subdataWithRange:NSMakeRange(8, 8)];
         NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
@@ -203,13 +221,38 @@ static NSUInteger integerFromData(NSData* data) {
         id<GTWTerm> g       = termFromData(cache, parser, [dict keyForObject:gkey]);
         if (!s || !p || !o || !g) {
             NSLog(@"bad quad decoded from AOF quadstore");
-            *stop   = YES;
-            return;
+            return nil;
         }
         GTWQuad* q          = [[GTWQuad alloc] initWithSubject:s predicate:p object:o graph:g];
-        block(q);
+        return q;
+    };
+    
+    [_btreeSPOG enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSData* data        = key;
+        id<GTWQuad> q       = dataToQuad(data);
+        if (q) {
+            testQuad(q);
+        } else {
+            *stop   = YES;
+        }
     }];
-    return ok;
+    if (NO) {
+        // TODO: if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
+        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            NSData* data        = obj;
+            id<GTWQuad> q       = dataToQuad(data);
+            if (q) {
+                testQuad(q);
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
+    return YES;
+}
+
+- (BOOL) enumerateQuadsWithBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
+    return [self enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:block error:error];
 }
 
 //@optional
@@ -220,8 +263,14 @@ static NSUInteger integerFromData(NSData* data) {
 //- (NSUInteger) countQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError **)error;
 
 - (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
+    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
+    NSLog(@"PREFIX: %@", prefix);
+    GTWAOFBTreeNode* lca    = [_btreeSPOG lcaNodeForKeysWithPrefix:prefix];
+    NSLog(@"LCA: %@", lca);
+    return [lca lastModified];
+    
     // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot
-    return [_quads lastModified];
+//    return [_quads lastModified];
 }
 
 @end
@@ -238,6 +287,9 @@ static NSUInteger integerFromData(NSData* data) {
         _quads          = _mutableQuads;
         _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
         _dict           = _mutableDict;
+        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        _btreeSPOG      = _mutableBtree;
+
     }
     return self;
 }
@@ -249,6 +301,8 @@ static NSUInteger integerFromData(NSData* data) {
         _quads          = _mutableQuads;
         _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
         _dict           = _mutableDict;
+        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        _btreeSPOG          = _mutableBtree;
     }
     return self;
 }
@@ -315,8 +369,10 @@ static NSUInteger integerFromData(NSData* data) {
     
     __block GTWMutableAOFRawQuads* rawquads;
     rawquads   = _mutableQuads;
+    GTWMutableAOFBTree* btree   = _mutableBtree;
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:@[quadData] updateContext:ctx];
+        [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
         return YES;
     }];
     _mutableQuads   = rawquads;
@@ -349,10 +405,18 @@ static NSUInteger integerFromData(NSData* data) {
     //    NSLog(@"creating new quads head");
     __block GTWMutableAOFRawQuads* rawquads;
     rawquads   = _mutableQuads;
+    GTWMutableAOFBTree* btree   = _mutableBtree;
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
         return YES;
     }];
+    // TODO: this should all happen within one update operation, but there's currently no way to load pages from an uncommitted updateContext
+    for (NSData* quadData in quadsData) {
+        [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
+            return YES;
+        }];
+    }
     _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
     if ([map count]) {
