@@ -275,7 +275,6 @@ static NSUInteger integerFromData(NSData* data) {
     }
 }
 
-// TODO: test nodes with zero-sized values (btrees for sets, not pairs)
 - (void)test_btreeZeroLengthValues {
     const NSUInteger keySize = 2;
     const NSUInteger valSize = 0;

@@ -90,7 +90,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "pages"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "btree"
@@ -98,15 +98,15 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "btreeadd"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "ffff"
-            isEnabled = "NO">
+            argument = "0000000000000000000000000000ffff"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "00000000000000000000000000001234"
-            isEnabled = "NO">
+            argument = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000EEEE"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "import"

@@ -280,7 +280,7 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (NSString*) description {
     NSData* max = [self maxKey];
-    NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; Page %llu; [0, %@]%@>", NSStringFromClass([self class]), self, (unsigned long long)self.pageID, (max ? max : @"-"), [self isRoot] ? @"; ROOT" : @""];
+    NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; Page %llu; %lld items; [0, %@]%@>", NSStringFromClass([self class]), self, (unsigned long long)self.pageID, (unsigned long long)[self count], (max ? max : @"-"), [self isRoot] ? @"; ROOT" : @""];
     return description;
 }
 
@@ -577,7 +577,8 @@ static NSUInteger integerFromData(NSData* data) {
     }
     [keys insertObject:key atIndex:i];
     [vals insertObject:object atIndex:i];
-    NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
+    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);
+    NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData:data];
@@ -620,7 +621,7 @@ static NSUInteger integerFromData(NSData* data) {
     return @[lhs, rhs];
 }
 
-+ (NSArray*) splitInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNodes:(NSArray*)newNodes updateContext:(GTWAOFUpdateContext*) ctx {
++ (NSArray*) splitOrReplaceInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNodes:(NSArray*)newNodes updateContext:(GTWAOFUpdateContext*) ctx {
     assert(node.type == GTWAOFBTreeInternalNodeType);
     NSLog(@"splitting internal node");
     NSMutableArray* pair        = [NSMutableArray array];
@@ -652,18 +653,43 @@ static NSUInteger integerFromData(NSData* data) {
     }
     
     // TODO: check if page will overflow
-    
-    
-    NSData* data   = [self newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:children verbose:NO];
-    if (!data)
-        return nil;
-    
-    GTWAOFPage* page   = [ctx createPageWithData:data];
-    if (!page)
-        return nil;
-    
-    GTWAOFBTreeNode* newNode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:page parent:node.parent fromAOF:ctx.aof];
-    [pair addObject:newNode];
+    if ([keys count] > node.maxInternalPageKeys) {
+        NSInteger count = [children count];
+        NSInteger mid   = count/2;
+        NSRange lrange  = NSMakeRange(0, mid);
+        NSRange rrange  = NSMakeRange(mid, count-mid);
+        
+        NSArray* lkeys      = [keys subarrayWithRange:NSMakeRange(0, mid-1)];
+        NSArray* lchildren  = [children subarrayWithRange:lrange];
+        NSArray* rkeys      = [keys subarrayWithRange:NSMakeRange(mid, count-mid-1)];
+        NSArray* rchildren  = [children subarrayWithRange:rrange];
+        
+        NSData* ldata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:lkeys childrenIDs:lchildren verbose:NO];
+        NSData* rdata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:rkeys childrenIDs:rchildren verbose:NO];
+        if (!(ldata && rdata))
+            return nil;
+        
+        GTWAOFPage* lpage   = [ctx createPageWithData:ldata];
+        GTWAOFPage* rpage   = [ctx createPageWithData:rdata];
+        if (!(lpage && rpage))
+            return nil;
+        
+        GTWAOFBTreeNode* lnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:lpage parent:node.parent fromAOF:ctx.aof];
+        GTWAOFBTreeNode* rnode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:rpage parent:node.parent fromAOF:ctx.aof];
+        [pair addObject:lnode];
+        [pair addObject:rnode];
+    } else {
+        NSData* data   = [self newInternalDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:children verbose:NO];
+        if (!data)
+            return nil;
+        
+        GTWAOFPage* page   = [ctx createPageWithData:data];
+        if (!page)
+            return nil;
+        
+        GTWAOFBTreeNode* newNode    = [[GTWMutableAOFBTreeNode alloc] initWithPage:page parent:node.parent fromAOF:ctx.aof];
+        [pair addObject:newNode];
+    }
     
     return [pair copy];
 }
