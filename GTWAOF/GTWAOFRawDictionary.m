@@ -448,6 +448,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
 }
 
 - (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     NSInteger prevID            = -1;
     GTWAOFRawDictionary* prev   = [self previousPage];
     if (prev) {

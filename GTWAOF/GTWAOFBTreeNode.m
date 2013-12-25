@@ -571,6 +571,7 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 + (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
+    // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     assert(node.type == GTWAOFBTreeLeafNodeType);
     // TODO: assert that node isn't full
     NSMutableArray* keys    = [[node allKeys] mutableCopy];

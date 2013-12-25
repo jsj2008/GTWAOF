@@ -11,6 +11,7 @@
 #import <GTWSWBase/GTWQuad.h>
 #import <GTWSWBase/GTWVariable.h>
 #import <SPARQLKit/SPKNTriplesSerializer.h>
+#import "GTWAOFUpdateContext.h"
 
 #define BULK_LOADING_BATCH_SIZE 4080
 
@@ -67,22 +68,22 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
-        _aof   = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDONLY|O_SHLOCK];
-        if (!_aof)
+        self.aof   = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDONLY|O_SHLOCK];
+        if (!self.aof)
             return nil;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
-        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
-        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
+        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
+        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:self.aof];
     }
     return self;
 }
 
 - (instancetype) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
-        _aof   = aof;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
-        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
-        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        self.aof   = aof;
+        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
+        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
+        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:self.aof];
     }
     return self;
 }
@@ -264,13 +265,23 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
     NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
-    NSLog(@"PREFIX: %@", prefix);
+//    NSLog(@"PREFIX: %@", prefix);
     GTWAOFBTreeNode* lca    = [_btreeSPOG lcaNodeForKeysWithPrefix:prefix];
-    NSLog(@"LCA: %@", lca);
+//    NSLog(@"LCA: %@", lca);
     return [lca lastModified];
     
     // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot
 //    return [_quads lastModified];
+}
+
+- (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    [_quads rewriteWithUpdateContext:ctx];
+    [_dict rewriteWithUpdateContext:ctx];
+    [_btreeSPOG rewriteWithUpdateContext:ctx];
+    
+    GTWAOFQuadStore* newstore   = [[GTWAOFQuadStore alloc] initWithAOF:ctx];
+    [ctx registerPageObject:newstore];
+    return newstore;
 }
 
 @end
@@ -280,14 +291,14 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (GTWMutableAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
-        _aof   = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDWR|O_SHLOCK];
-        if (!_aof)
+        self.aof    = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDWR|O_SHLOCK];
+        if (!self.aof)
             return nil;
-        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
+        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
         _quads          = _mutableQuads;
-        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
         _dict           = _mutableDict;
-        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:self.aof];
         _btreeSPOG      = _mutableBtree;
 
     }
@@ -296,12 +307,12 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (instancetype) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
-        _aof   = aof;
-        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:_aof];
+        self.aof   = aof;
+        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
         _quads          = _mutableQuads;
-        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:_aof];
+        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
         _dict           = _mutableDict;
-        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:_aof];
+        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:self.aof];
         _btreeSPOG          = _mutableBtree;
     }
     return self;
@@ -370,7 +381,7 @@ static NSUInteger integerFromData(NSData* data) {
     __block GTWMutableAOFRawQuads* rawquads;
     rawquads   = _mutableQuads;
     GTWMutableAOFBTree* btree   = _mutableBtree;
-    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:@[quadData] updateContext:ctx];
         [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
         return YES;
@@ -406,7 +417,7 @@ static NSUInteger integerFromData(NSData* data) {
     __block GTWMutableAOFRawQuads* rawquads;
     rawquads   = _mutableQuads;
     GTWMutableAOFBTree* btree   = _mutableBtree;
-    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
         for (NSData* quadData in quadsData) {
             [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
@@ -415,7 +426,7 @@ static NSUInteger integerFromData(NSData* data) {
     }];
     // TODO: this should all happen within one update operation, but there's currently no way to load pages from an uncommitted updateContext
 //    for (NSData* quadData in quadsData) {
-//        [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+//        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
 //            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
 //            return YES;
 //        }];
@@ -445,7 +456,7 @@ static NSUInteger integerFromData(NSData* data) {
     __block NSInteger pageID    = -1;
     NSMutableArray* pages   = [NSMutableArray array];
     while (quads) {
-        [GTWAOFRawQuads enumerateObjectsForPage:quads.pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+        [GTWAOFRawQuads enumerateObjectsForPage:quads.pageID fromAOF:self.aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
             NSData* quadData    = [key subdataWithRange:range];
             //            NSLog(@"-> checking quad with data: %@", quadData);
             if ([quadData isEqual:removeQuadData]) {
@@ -461,7 +472,7 @@ static NSUInteger integerFromData(NSData* data) {
             [pages addObject:@(quads.pageID)];
             NSInteger prev  = quads.previousPageID;
             if (prev >= 0) {
-                quads   = [[GTWAOFRawQuads alloc] initWithPageID:prev fromAOF:_aof];
+                quads   = [[GTWAOFRawQuads alloc] initWithPageID:prev fromAOF:self.aof];
             } else {
                 break;
             }
@@ -473,8 +484,8 @@ static NSUInteger integerFromData(NSData* data) {
         //        NSLog(@"-> page head list: %@", [pages componentsJoinedByString:@", "]);
         
         NSMutableArray* quadsData   = [NSMutableArray array];
-        GTWAOFRawQuads* quadsPage   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:_aof];
-        [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+        GTWAOFRawQuads* quadsPage   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:self.aof];
+        [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:self.aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
             NSData* quadData    = [key subdataWithRange:range];
             if (![quadData isEqual:removeQuadData]) {
                 [quadsData addObject:quadData];
@@ -485,13 +496,13 @@ static NSUInteger integerFromData(NSData* data) {
         //        NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
         __block GTWMutableAOFRawQuads* rewrittenPage;
         if (tailID >= 0) {
-            GTWMutableAOFRawQuads* quadsPageTail   = [[GTWMutableAOFRawQuads alloc] initWithPageID:quadsPage.previousPageID fromAOF:_aof];
-            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            GTWMutableAOFRawQuads* quadsPageTail   = [[GTWMutableAOFRawQuads alloc] initWithPageID:quadsPage.previousPageID fromAOF:self.aof];
+            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
                 rewrittenPage   = [quadsPageTail mutableQuadsByAddingQuads:quadsData updateContext:ctx];
                 return YES;
             }];
         } else {
-            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
                 rewrittenPage   = [GTWMutableAOFRawQuads mutableQuadsWithQuads:quadsData updateContext:ctx];
                 return YES;
             }];
@@ -505,7 +516,7 @@ static NSUInteger integerFromData(NSData* data) {
         for (NSNumber* n in e) {
             pageID  = [n integerValue];
             NSMutableArray* quadsData   = [NSMutableArray array];
-            [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:_aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
+            [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:self.aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
                 NSData* quadData    = [key subdataWithRange:range];
                 if (![quadData isEqual:removeQuadData]) {
                     [quadsData addObject:quadData];
@@ -515,7 +526,7 @@ static NSUInteger integerFromData(NSData* data) {
             //            NSLog(@"rewriting with tail ID: %lld", (long long)tailID);
             __block GTWMutableAOFRawQuads* rewrittenPage;
             GTWMutableAOFRawQuads* rawquads = _mutableQuads;
-            [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
                 rewrittenPage   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
                 return YES;
             }];

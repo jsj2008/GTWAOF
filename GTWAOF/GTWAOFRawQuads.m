@@ -237,6 +237,7 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
 }
 
 - (GTWMutableAOFRawQuads*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     NSInteger prevID        = -1;
     GTWAOFRawQuads* prev    = [self previousPage];
     NSArray* quads          = [self allObjects];

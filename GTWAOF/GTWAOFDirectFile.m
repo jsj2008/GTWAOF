@@ -34,7 +34,7 @@
         
         NSURL* url    = [[NSURL fileURLWithPath:file] absoluteURL];
         const char* filename    = [url fileSystemRepresentation];
-        NSLog(@"AOF file: %s", filename);
+//        NSLog(@"AOF file: %s", filename);
         
 //        const char* filename  = [file UTF8String];
         struct stat sbuf;

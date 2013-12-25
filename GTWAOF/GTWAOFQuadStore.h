@@ -14,8 +14,7 @@
 #import "GTWAOFRawQuads.h"
 #import "GTWAOFBTree.h"
 
-@interface GTWAOFQuadStore : NSObject<GTWQuadStore> {
-    id<GTWAOF> _aof;
+@interface GTWAOFQuadStore : NSObject<GTWQuadStore,GTWAOFBackedObject> {
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
     GTWAOFBTree* _btreeSPOG;
@@ -23,9 +22,11 @@
 }
 
 @property BOOL verbose;
+@property (readwrite) id<GTWAOF> aof;
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 - (GTWAOFQuadStore*) initWithAOF: (id<GTWAOF>) aof;
+- (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
 

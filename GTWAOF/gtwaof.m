@@ -422,11 +422,19 @@ int main(int argc, const char * argv[]) {
         NSError* error;
         double start_export = current_time();
         NSDate* date    = [store lastModifiedDateForQuadsMatchingSubject:s predicate:p object:o graph:g error:&error];
-        NSLog(@"Last-Modified: %@", date);
+        NSLog(@"Last-Modified: %@", [date descriptionWithCalendarFormat:@"%Y-%m-%dT%H:%M:%S%z" timeZone:[NSTimeZone localTimeZone] locale:[NSLocale currentLocale]]);
         [store enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
             fprintf(stdout, "%s\n", [[q description] UTF8String]);
         } error:&error];
         fprintf(stderr, "export time: %lf\n", elapsed_time(start_export));
+    } else if (!strcmp(op, "compact")) {
+        NSString* newfilename   = @(argv[argi++]);
+        GTWAOFDirectFile* newaof   = [[GTWAOFDirectFile alloc] initWithFilename:newfilename];
+        GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
+        [newaof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [store rewriteWithUpdateContext:ctx];
+            return YES;
+        }];
     } else if (!strcmp(op, "import")) {
         GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         store.verbose       = YES;

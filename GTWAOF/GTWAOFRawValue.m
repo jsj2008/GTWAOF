@@ -176,6 +176,7 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
 }
 
 - (GTWMutableAOFRawValue*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     return [GTWMutableAOFRawValue valueWithData:self.data updateContext:ctx];
 }
 
