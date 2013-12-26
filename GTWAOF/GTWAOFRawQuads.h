@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "GTWAOF.h"
 #import "GTWAOFPage.h"
+
 #define RAW_QUADS_COOKIE "RQDS"
 
 @class GTWMutableAOFRawQuads;

@@ -28,6 +28,7 @@
 
 #define BTREE_INTERNAL_NODE_COOKIE "BPTI"
 #define BTREE_LEAF_NODE_COOKIE "BPTL"
+#define QUAD_STORE_COOKIE "QDST"
 
 static const NSInteger keySize  = 32;
 static const NSInteger valSize  = 8;
@@ -175,7 +176,8 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
                             @"RQDS": @"Raw Quads",
                             @"RVAL": @"Raw Value",
                             @"BPTI": @"B+ Tree Internal Node",
-                            @"BPTL": @"B+ Tree Leaf Node"
+                            @"BPTL": @"B+ Tree Leaf Node",
+                            @"QDST": @"Quad Store"
                             };
     NSString* c = [NSString stringWithFormat:@"%s", cookie];
     fprintf(stdout, "Page %-6lu\n", p.pageID);
@@ -243,11 +245,17 @@ int main(int argc, const char * argv[]) {
         return 0;
     }
 
-    int argi    = 1;
+    int argi            = 1;
+    NSInteger pageID    = -1;
     const char* filename    = "test.db";
-    if (!strcmp(argv[argi], "-s")) {
-        argi++;
-        filename    = argv[argi++];
+    while (argc > argi && argv[argi][0] == '-') {
+        if (!strcmp(argv[argi], "-s")) {
+            argi++;
+            filename    = argv[argi++];
+        } else if (!strcmp(argv[argi], "-p")) {
+            argi++;
+            pageID    = atoll(argv[argi++]);
+        }
     }
 
     double start    = current_time();
@@ -408,7 +416,8 @@ int main(int argc, const char * argv[]) {
             return YES;
         }];
     } else if (!strcmp(op, "export")) {
-        GTWAOFQuadStore* store  = [[GTWAOFQuadStore alloc] initWithAOF:aof];
+        NSLog(@"Exporting from QuadStore #%lld", (long long)pageID);
+        GTWAOFQuadStore* store  = (pageID < 0) ? [[GTWAOFQuadStore alloc] initWithAOF:aof] : [[GTWAOFQuadStore alloc] initWithPageID:pageID fromAOF:aof];
         if (!store) {
             NSLog(@"Failed to create quad store object");
             return 1;

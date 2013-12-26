@@ -9,10 +9,11 @@
 #import <Foundation/Foundation.h>
 #import "GTWAOFBTreeNode.h"
 
-@interface GTWAOFBTree : NSObject {
-    id<GTWAOF> _aof;
+@interface GTWAOFBTree : NSObject<GTWAOFBackedObject> {
     GTWAOFBTreeNode* _root;
 }
+
+@property (readwrite) id<GTWAOF> aof;
 
 - (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof;
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;

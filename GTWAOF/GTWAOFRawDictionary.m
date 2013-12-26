@@ -102,6 +102,10 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return self;
 }
 
+- (NSString*) pageType {
+    return @(RAW_DICT_COOKIE);
+}
+
 - (NSInteger) pageID {
     return _head.pageID;
 }
@@ -449,6 +453,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
 
 - (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
     // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
+    // TODO: need to rewrite RawValue pages, too.
     NSInteger prevID            = -1;
     GTWAOFRawDictionary* prev   = [self previousPage];
     if (prev) {

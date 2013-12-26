@@ -24,4 +24,7 @@
 
 @protocol GTWAOFBackedObject <NSObject>
 @property (readwrite) id<GTWAOF> aof;
+@property (readonly) NSString* pageType;
+@optional
+@property (readonly) NSInteger pageID;
 @end

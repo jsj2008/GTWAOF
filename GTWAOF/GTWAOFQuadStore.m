@@ -15,6 +15,11 @@
 
 #define BULK_LOADING_BATCH_SIZE 4080
 
+#define TS_OFFSET       8
+#define PREV_OFFSET     16
+#define RSVD_OFFSET     24
+#define DATA_OFFSET     32
+
 static id<GTWTerm> termFromData(NSCache* cache, SPKTurtleParser* p, NSData* data) {
     id<GTWTerm> term    = [cache objectForKey:data];
     if (term)
@@ -66,14 +71,43 @@ static NSUInteger integerFromData(NSData* data) {
     return data;
 }
 
+- (NSInteger) lastQuadStoreHeaderPageID {
+    NSInteger pageID;
+    NSInteger pageCount = [self.aof pageCount];
+    NSInteger headerPageID  = -1;
+    for (pageID = pageCount-1; pageID >= 0; pageID--) {
+        NSLog(@"Checking page %lu for dictionary head", pageID);
+        GTWAOFPage* p   = [self.aof readPage:pageID];
+        NSData* data    = p.data;
+        NSString* cookie  = [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(0, 4)] encoding:NSUTF8StringEncoding];
+        if ([cookie isEqual:@(QUAD_STORE_COOKIE)]) {
+            headerPageID    = pageID;
+            break;
+        } else {
+            NSLog(@"- cookie: %@", cookie);
+        }
+    }
+    
+    return headerPageID;
+}
+
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
         self.aof   = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDONLY|O_SHLOCK];
         if (!self.aof)
             return nil;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
-        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
-        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:self.aof];
+        
+        NSInteger headerPageID  = [self lastQuadStoreHeaderPageID];
+        if (headerPageID < 0) {
+            NSLog(@"Failed to find a QuadStore page in AOF file");
+            return nil;
+            //            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
+        } else {
+            _head   = [self.aof readPage:headerPageID];
+            BOOL ok = [self _loadPointers];
+            if (!ok)
+                return nil;
+        }
     }
     return self;
 }
@@ -81,12 +115,100 @@ static NSUInteger integerFromData(NSData* data) {
 - (instancetype) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
         self.aof   = aof;
-        _quads  = [[GTWAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
-        _dict   = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
-        _btreeSPOG  = [[GTWAOFBTree alloc] initFindingBTreeInAOF:self.aof];
+
+        NSInteger headerPageID  = [self lastQuadStoreHeaderPageID];
+        if (headerPageID < 0) {
+            NSLog(@"Failed to find a QuadStore page in AOF file");
+            return nil;
+            //            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
+        } else {
+            _head   = [self.aof readPage:headerPageID];
+            BOOL ok = [self _loadPointers];
+            if (!ok)
+                return nil;
+        }
     }
     return self;
 }
+
+- (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    if (self = [self init]) {
+        self.aof   = aof;
+        _head   = [self.aof readPage:pageID];
+        BOOL ok = [self _loadPointers];
+        if (!ok)
+            return nil;
+    }
+    return self;
+}
+
+- (GTWAOFQuadStore*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+    if (self = [self init]) {
+        self.aof   = aof;
+        _head   = page;
+        BOOL ok = [self _loadPointers];
+        if (!ok)
+            return nil;
+    }
+    return self;
+}
+
+- (BOOL) _loadPointers {
+    GTWAOFPage* p   = _head;
+    NSData* data    = p.data;
+    NSData* tdata   = [data subdataWithRange:NSMakeRange(0, 4)];
+    if (memcmp(tdata.bytes, QUAD_STORE_COOKIE, 4)) {
+        NSLog(@"*** Bad QuadStore cookie: %@", tdata);
+        return NO;
+    }
+    
+    int offset  = DATA_OFFSET;
+    while ((offset+16) <= [self.aof pageSize]) {
+        uint64_t big_offset = 0;
+        NSData* type    = [data subdataWithRange:NSMakeRange(offset, 4)];
+        if (!memcmp(type.bytes, "\0\0\0\0", 4)) {
+            break;
+        }
+        NSData* name    = [data subdataWithRange:NSMakeRange(offset+4, 4)];
+        [data getBytes:&big_offset range:NSMakeRange(offset+8, 8)];
+        offset  += 16;
+        
+        NSString* typeName  = [[NSString alloc] initWithData:type encoding:NSUTF8StringEncoding];
+        NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
+        uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
+        if ([typeName isEqualToString:@"INDX"]) {
+            if ([order isEqualToString:@"SPOG"]) {
+                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
+                _btreeSPOG  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+                _btreeID    = pageID;
+            } else {
+                NSLog(@"Unexpected index order: %@", order);
+                return NO;
+            }
+        } else if ([typeName isEqualToString:@"RDCT"]) {
+            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
+            _dict   = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
+            _dictID = pageID;
+        } else if ([typeName isEqualToString:@"RQDS"]) {
+            NSLog(@"Found Raw Quads index at page %llu", (unsigned long long)pageID);
+            _quads   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:self.aof];
+            _quadsID = pageID;
+        } else {
+            NSLog(@"Unexpected index pointer for page %llu: %@", (unsigned long long)pageID, typeName);
+            return NO;
+        }
+    }
+    return YES;
+}
+
+/**
+ key = [NSMutableData dataWithBytes:"INDX" length:4];
+ [key appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
+ } else if ([type isEqualToString:@"RDCT"]) {
+ key = [NSMutableData dataWithBytes:"RDCT    " length:8];
+ } else if ([type isEqualToString:@"RQDS"]) {
+ key = [NSMutableData dataWithBytes:"RQDS    " length:8];
+ */
 
 - (instancetype) init {
     if (self = [super init]) {
@@ -95,6 +217,49 @@ static NSUInteger integerFromData(NSData* data) {
     }
     return self;
 }
+
+- (NSInteger) previousPageID {
+    GTWAOFPage* p   = _head;
+    NSData* data    = p.data;
+    uint64_t big_prev = 0;
+    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
+    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
+    return (NSInteger) prev;
+}
+
+- (GTWAOFRawQuads*) previousPage {
+    if (self.previousPageID >= 0) {
+        return [[GTWAOFRawQuads alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+    } else {
+        return nil;
+    }
+}
+
+- (GTWAOFPage*) head {
+    return _head;
+}
+
+- (NSDate*) lastModified {
+    GTWAOFPage* p   = _head;
+    NSData* data    = p.data;
+    uint64_t big_ts = 0;
+    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
+    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    return [NSDate dateWithTimeIntervalSince1970:(double)ts];
+}
+
+- (NSString*) pageType {
+    return @(QUAD_STORE_COOKIE);
+}
+
+- (NSSet*) indexes {
+    return [NSSet setWithObjects:@"SPOG", nil];
+}
+
+- (NSInteger) pageID {
+    return _head.pageID;
+}
+
 - (NSArray*) getGraphsWithError:(NSError *__autoreleasing*)error {
     NSMutableSet* graphs    = [NSMutableSet set];
     BOOL ok                 = [self enumerateGraphsUsingBlock:^(id<GTWTerm> g) {
@@ -275,11 +440,25 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 - (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
-    [_quads rewriteWithUpdateContext:ctx];
-    [_dict rewriteWithUpdateContext:ctx];
-    [_btreeSPOG rewriteWithUpdateContext:ctx];
+    NSInteger prevID                    = [self previousPageID];
+    NSInteger newPrevID                 = -1;
+    if (prevID >= 0) {
+        GTWAOFQuadStore* prev   = [[GTWAOFQuadStore alloc] initWithPageID:prevID fromAOF:self.aof];
+        NSLog(@"-> previous quadstore: %@", prev);
+        if (prev) {
+            GTWAOFQuadStore* newprev    = [prev rewriteWithUpdateContext:ctx];
+            newPrevID   = newprev.pageID;
+        }
+    } else {
+        NSLog(@"-> no previous quadstore");
+    }
     
-    GTWAOFQuadStore* newstore   = [[GTWAOFQuadStore alloc] initWithAOF:ctx];
+    GTWMutableAOFRawQuads* quads        = [_quads rewriteWithUpdateContext:ctx];
+    GTWMutableAOFRawDictionary* dict    = [_dict rewriteWithUpdateContext:ctx];
+    GTWAOFBTree* spog                   = [_btreeSPOG rewriteWithUpdateContext:ctx];
+    NSLog(@"rewriting AOF QuadStore with previous QuadStore at page %lld", (long long)prevID);
+    NSLog(@"-> %@", self.aof);
+    GTWMutableAOFQuadStore* newstore    = [[GTWMutableAOFQuadStore alloc] initWithPreviousPageID:newPrevID rawDictionary:dict rawQuads:quads btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
     [ctx registerPageObject:newstore];
     return newstore;
 }
@@ -289,18 +468,76 @@ static NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWMutableAOFQuadStore
 
+NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDictionary* pagePointers, BOOL verbose ) {
+    int64_t max     = ((pageSize - DATA_OFFSET) / 16);
+    if ([pagePointers count] > max) {
+        NSLog(@"Too many index/page pointers seen while creating QuadStore header page");
+        return nil;
+    }
+    
+    uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
+    int64_t prev    = (int64_t) prevPageID;
+    if (verbose) {
+        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
+    }
+    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
+    int64_t bigprev = NSSwapHostLongLongToBig(prev);
+    
+    NSMutableData* data = [NSMutableData dataWithLength:pageSize];
+    [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:QUAD_STORE_COOKIE];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
+    int offset  = DATA_OFFSET;
+    for (NSString* name in pagePointers) {
+        id<GTWAOFBackedObject> obj  = pagePointers[name];
+        NSInteger pageID            = [obj pageID];
+        if (verbose) {
+            NSLog(@"handling index: %@", obj);
+        }
+        
+        NSMutableData* key;
+        NSString* type  = [obj pageType];
+        if ([type isEqualToString:@"BTRE"]) {
+            key = [NSMutableData dataWithBytes:"INDX" length:4];
+            [key appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
+        } else if ([type isEqualToString:@"RDCT"]) {
+            key = [NSMutableData dataWithBytes:"RDCT    " length:8];
+        } else if ([type isEqualToString:@"RQDS"]) {
+            key = [NSMutableData dataWithBytes:"RQDS    " length:8];
+        } else {
+            NSLog(@"Unknown QuadStore page type: '%@'", [obj pageType]);
+            return nil;
+        }
+        
+        if ([key length] != 8) {
+            NSLog(@"Bad key size for QuadStore page key: '%@'", key);
+            return nil;
+        }
+        
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
+        offset  += 8;
+        
+        int64_t pid     = (int64_t) pageID;
+        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
+        offset  += 8;
+    }
+    if ([data length] != pageSize) {
+        NSLog(@"page has bad size for quadstore: %llu", (unsigned long long)[data length]);
+        return nil;
+    }
+    return data;
+}
+
 - (GTWMutableAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
         self.aof    = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDWR|O_SHLOCK];
         if (!self.aof)
             return nil;
-        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
-        _quads          = _mutableQuads;
-        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
-        _dict           = _mutableDict;
-        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:self.aof];
-        _btreeSPOG      = _mutableBtree;
-
+        
+        if (self = [self initWithAOF:self.aof]) {
+            
+        }
     }
     return self;
 }
@@ -308,14 +545,90 @@ static NSUInteger integerFromData(NSData* data) {
 - (instancetype) initWithAOF: (id<GTWAOF>) aof {
     if (self = [self init]) {
         self.aof   = aof;
-        _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
-        _quads          = _mutableQuads;
-        _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
-        _dict           = _mutableDict;
-        _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:self.aof];
-        _btreeSPOG          = _mutableBtree;
+        // if we don't find a header page ID, we need to create new pages here
+        NSInteger headerPageID  = [self lastQuadStoreHeaderPageID];
+        if (headerPageID < 0) {
+            //            NSLog(@"Failed to find a RawDictionary page in AOF file; creating an empty one");
+            _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initFindingQuadsInAOF:self.aof];
+            _quads          = _mutableQuads;
+            _quadsID        = _quads.pageID;
+            
+            _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initFindingDictionaryInAOF:self.aof];
+            _dict           = _mutableDict;
+            _dictID         = _quads.pageID;
+            
+            _mutableBtree   = [[GTWMutableAOFBTree alloc] initFindingBTreeInAOF:self.aof];
+            _btreeSPOG      = _mutableBtree;
+            _btreeID        = _btreeSPOG.pageID;
+            
+            GTWAOFRawDictionary* dict   = _dict;
+            GTWAOFRawQuads* quads       = _quads;
+            GTWAOFBTree* spog           = _btreeSPOG;
+            __block NSInteger headPageID    = -1;
+            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                headPageID  = [self writeNewQuadStoreHeaderPageWithPreviousPageID:-1 rawDictionary:dict rawQuads:quads btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
+                return YES;
+            }];
+            _head   = [self.aof readPage:headPageID];
+        } else {
+            _head   = [self.aof readPage:headerPageID];
+            BOOL ok = [self _loadPointers];
+            if (!ok)
+                return nil;
+        }
     }
     return self;
+}
+
+- (BOOL) _loadPointers {
+    GTWAOFPage* p   = _head;
+    NSData* data    = p.data;
+    NSData* tdata   = [data subdataWithRange:NSMakeRange(0, 4)];
+    if (memcmp(tdata.bytes, QUAD_STORE_COOKIE, 4)) {
+        NSLog(@"*** Bad QuadStore cookie: %@", tdata);
+        return NO;
+    }
+    
+    int offset  = DATA_OFFSET;
+    while ((offset+16) <= [self.aof pageSize]) {
+        uint64_t big_offset = 0;
+        NSData* type    = [data subdataWithRange:NSMakeRange(offset, 4)];
+        if (!memcmp(type.bytes, "\0\0\0\0", 4)) {
+            break;
+        }
+        NSData* name    = [data subdataWithRange:NSMakeRange(offset+4, 4)];
+        [data getBytes:&big_offset range:NSMakeRange(offset+8, 8)];
+        offset  += 16;
+        
+        NSString* typeName  = [[NSString alloc] initWithData:type encoding:NSUTF8StringEncoding];
+        NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
+        uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
+        if ([typeName isEqualToString:@"INDX"]) {
+            if ([order isEqualToString:@"SPOG"]) {
+                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
+                _mutableBtree   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+                _btreeSPOG      = _mutableBtree;
+                _btreeID        = _btreeSPOG.pageID;
+            } else {
+                NSLog(@"Unexpected index order: %@", order);
+                return NO;
+            }
+        } else if ([typeName isEqualToString:@"RDCT"]) {
+            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
+            _mutableDict    = [[GTWMutableAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
+            _dict           = _mutableDict;
+            _dictID         = _dict.pageID;
+        } else if ([typeName isEqualToString:@"RQDS"]) {
+            NSLog(@"Found Raw Quads index at page %llu", (unsigned long long)pageID);
+            _mutableQuads   = [[GTWMutableAOFRawQuads alloc] initWithPageID:pageID fromAOF:self.aof];
+            _quads          = _mutableQuads;
+            _quadsID        = _quads.pageID;
+        } else {
+            NSLog(@"Unexpected index pointer for page %llu: %@", (unsigned long long)pageID, typeName);
+            return NO;
+        }
+    }
+    return YES;
 }
 
 - (NSData*) dataFromQuad: (id<GTWQuad>) q {
@@ -332,6 +645,38 @@ static NSUInteger integerFromData(NSData* data) {
     return quadData;
 }
 
+- (GTWMutableAOFQuadStore*) initWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWMutableAOFRawDictionary*)dict rawQuads:(GTWMutableAOFRawQuads*)quads btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx {
+    if (self = [self init]) {
+        NSInteger pageID    = [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:quads btreeIndexes:indexes updateContext:ctx];
+        _head               = [ctx readPage:pageID];
+        _mutableQuads       = quads;
+        _quads              = _mutableQuads;
+        _quadsID            = _quads.pageID;
+        _mutableDict        = dict;
+        _dict               = _mutableDict;
+        _dictID             = _dict.pageID;
+        _mutableBtree       = indexes[@"SPOG"];
+        _btreeSPOG          = _mutableBtree;
+        _btreeID            = _btreeSPOG.pageID;
+    }
+    return self;
+}
+
+- (NSInteger) writeNewQuadStoreHeaderPageWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWAOFRawDictionary*)dict rawQuads:(GTWAOFRawQuads*)quads btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx {
+    NSMutableDictionary* pointers   = [NSMutableDictionary dictionary];
+    pointers[@"QUAD"]   = quads;
+    pointers[@"DICT"]   = dict;
+    for (NSString* indexOrder in indexes) {
+        pointers[indexOrder]    = indexes[indexOrder];
+    }
+    NSData* pageData    = newQuadStoreHeaderData([ctx pageSize], prevID, pointers, NO);
+    if(!pageData)
+        return NO;
+    GTWAOFPage* page    = [ctx createPageWithData:pageData];
+    NSLog(@"QuadStore header is at page %llu", (unsigned long long)page.pageID);
+    return page.pageID;
+}
+
 - (NSUInteger) nextID {
     __block NSUInteger curMaxID = 0;
     [_dict enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
@@ -344,14 +689,13 @@ static NSUInteger integerFromData(NSData* data) {
     return nextID;
 }
 
-- (BOOL) addQuad: (id<GTWQuad>) q error:(NSError *__autoreleasing*)error {
+- (BOOL) addQuad:(id<GTWQuad>)q error:(NSError *__autoreleasing*)error {
     if (_bulkLoading) {
         [_bulkQuads addObject:q];
         if ([_bulkQuads count] >= BULK_LOADING_BATCH_SIZE) {
             if (self.verbose)
                 NSLog(@"Flushing %llu quads", (unsigned long long)[_bulkQuads count]);
-            [self endBulkLoad];
-            [self beginBulkLoad];
+            [self flushBulkQuads];
         }
         return YES;
     }
@@ -376,18 +720,28 @@ static NSUInteger integerFromData(NSData* data) {
     if ([map count]) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
         _dict           = _mutableDict;
+        _dictID         = _dict.pageID;
     }
     
     __block GTWMutableAOFRawQuads* rawquads;
     rawquads   = _mutableQuads;
     GTWMutableAOFBTree* btree   = _mutableBtree;
+    BOOL bulkLoading            = _bulkLoading;
+    GTWAOFRawDictionary* dict   = _dict;
+    NSInteger prevID            = [self pageID];
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         rawquads   = [rawquads mutableQuadsByAddingQuads:@[quadData] updateContext:ctx];
         [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
+        if (!bulkLoading) {
+            // rewrite QuadStore header page
+            [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:rawquads btreeIndexes:@{@"SPOG": btree} updateContext:ctx];
+        }
         return YES;
     }];
+    _btreeID        = btree.pageID;
     _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
+    _quadsID        = _quads.pageID;
     return YES;
 }
 
@@ -418,24 +772,21 @@ static NSUInteger integerFromData(NSData* data) {
     rawquads   = _mutableQuads;
     GTWMutableAOFBTree* btree   = _mutableBtree;
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
         for (NSData* quadData in quadsData) {
             [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
         }
+        rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+//        NSLog(@"addQuads ctx: %@", ctx.createdPages);
         return YES;
     }];
-    // TODO: this should all happen within one update operation, but there's currently no way to load pages from an uncommitted updateContext
-//    for (NSData* quadData in quadsData) {
-//        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-//            [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
-//            return YES;
-//        }];
-//    }
+    _btreeID        = btree.pageID;
     _mutableQuads   = rawquads;
     _quads          = _mutableQuads;
+    _quadsID        = _quads.pageID;
     if ([map count]) {
         _mutableDict    = [_mutableDict dictionaryByAddingDictionary:map];
         _dict           = _mutableDict;
+        _dictID         = _dict.pageID;
     }
     return YES;
 }
@@ -533,10 +884,20 @@ static NSUInteger integerFromData(NSData* data) {
             //            NSLog(@"-> new page ID: %lld", (long long)rewrittenPage.pageID);
             _mutableQuads   = rewrittenPage;
             _quads          = _mutableQuads;
+            _quadsID        = _quads.pageID;
             tailID          = rewrittenPage.pageID;
         }
     }
     
+    // rewrite QuadStore header page
+    GTWAOFRawDictionary* dict   = _dict;
+    GTWAOFBTree* btree          = _btreeSPOG;
+    NSInteger prevID            = [self pageID];
+    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:quads btreeIndexes:@{@"SPOG": btree} updateContext:ctx];
+        return YES;
+    }];
+    _btreeID    = btree.pageID;
     return NO;
 }
 
@@ -551,18 +912,32 @@ static NSUInteger integerFromData(NSData* data) {
     }
 }
 
-- (void) endBulkLoad {
-    if (!_bulkLoading) {
-        NSLog(@"endBulkLoad called on store that is not bulk loading.");
-        return;
-    }
-    _bulkLoading    = NO;
+- (void) flushBulkQuads {
     NSError* error;
     [self addQuads:_bulkQuads error:&error];
     if (error) {
         NSLog(@"%@", error);
     }
     [_bulkQuads removeAllObjects];
+}
+
+- (void) endBulkLoad {
+    if (!_bulkLoading) {
+        NSLog(@"endBulkLoad called on store that is not bulk loading.");
+        return;
+    }
+    [self flushBulkQuads];
+    _bulkLoading    = NO;
+
+    // rewrite QuadStore header page
+    GTWAOFRawDictionary* dict   = _dict;
+    GTWAOFRawQuads* quads       = _quads;
+    GTWAOFBTree* spog           = _btreeSPOG;
+    NSInteger prevID            = [self pageID];
+    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:quads btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
+        return YES;
+    }];
 }
 
 @end

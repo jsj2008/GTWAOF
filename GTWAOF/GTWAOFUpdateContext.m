@@ -41,6 +41,7 @@
 
 - (GTWAOFPage*) createPageWithData: (NSData*)data {
 	uint64_t pageID	= __sync_fetch_and_add(&(nextPageID), 1);
+//    NSLog(@"creating new page %llu", (unsigned long long)pageID);
     GTWAOFPage* page    = [[GTWAOFPage alloc] initWithPageID:pageID data:data committed:NO];
     [_createdPages addObject:page];
     return page;
@@ -52,6 +53,10 @@
 
 - (void) registerPageObject:(id)object {
     [_registeredObjects addObject:object];
+}
+
+- (NSString*) description {
+    return [NSMutableString stringWithFormat:@"<%@: %p; %llu new pages>", NSStringFromClass([self class]), self, (unsigned long long)[_createdPages count]];
 }
 
 @end

@@ -67,6 +67,10 @@
     return self;
 }
 
+- (NSString*) pageType {
+    return @(RAW_QUADS_COOKIE);
+}
+
 - (NSInteger) pageID {
     return _head.pageID;
 }

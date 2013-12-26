@@ -71,6 +71,10 @@ static NSUInteger integerFromData(NSData* data) {
     return self;
 }
 
+- (NSString*) pageType {
+    return (self.type == GTWAOFBTreeInternalNodeType) ? @(BTREE_INTERNAL_NODE_COOKIE) : @(BTREE_LEAF_NODE_COOKIE);
+}
+
 - (void) setKeySize:(NSInteger)keySize {
     _keySize    = keySize;
     [self _updateConstraints];
@@ -583,7 +587,7 @@ static NSUInteger integerFromData(NSData* data) {
     }
     [keys insertObject:key atIndex:i];
     [vals insertObject:object atIndex:i];
-    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);
+//    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);
     NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
     if (!data)
         return nil;
@@ -634,7 +638,7 @@ static NSUInteger integerFromData(NSData* data) {
 
 + (NSArray*) splitOrReplaceInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNodes:(NSArray*)newNodes updateContext:(GTWAOFUpdateContext*) ctx {
     assert(node.type == GTWAOFBTreeInternalNodeType);
-    NSLog(@"splitting internal node");
+//    NSLog(@"splitting internal node");
     NSMutableArray* pair        = [NSMutableArray array];
     NSMutableArray* keys        = [[node allKeys] mutableCopy];
     NSMutableArray* children    = [[node childrenPageIDs] mutableCopy];

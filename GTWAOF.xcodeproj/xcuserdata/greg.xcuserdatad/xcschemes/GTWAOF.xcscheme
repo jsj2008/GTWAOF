@@ -110,10 +110,18 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "import"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/foaf.ttl"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "compact"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/compacted.db"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
