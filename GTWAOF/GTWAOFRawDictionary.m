@@ -17,6 +17,7 @@
 #import "GTWAOFUpdateContext.h"
 #import "GTWAOFRawValue.h"
 #import "GZIP.h"
+#import "GTWAOFPage+GTWAOFLinkedPage.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -57,6 +58,11 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 //            return [GTWAOFRawDictionary dictionaryWithDictionary:@{} aof:aof];
         }
         [self _loadEntries];
+        
+        if (![[_head cookie] isEqual:[NSData dataWithBytes:RAW_DICT_COOKIE length:4]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }
@@ -79,6 +85,11 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
         _aof    = aof;
         _head   = [aof readPage:pageID];
         [self _loadEntries];
+        
+        if (![[_head cookie] isEqual:[NSData dataWithBytes:RAW_DICT_COOKIE length:4]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }
@@ -88,6 +99,11 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
         _aof    = aof;
         _head   = page;
         [self _loadEntries];
+        
+        if (![[_head cookie] isEqual:[NSData dataWithBytes:RAW_DICT_COOKIE length:4]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }

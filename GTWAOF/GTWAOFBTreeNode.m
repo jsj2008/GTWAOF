@@ -9,6 +9,7 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFUpdateContext.h"
 #import "NSData+GTWCompare.h"
+#import "GTWAOFPage+GTWAOFLinkedPage.h"
 
 #define TS_OFFSET       8
 #define COUNT_OFFSET    16
@@ -45,6 +46,11 @@ static NSUInteger integerFromData(NSData* data) {
             return nil;
         }
         [self _loadEntries];
+        
+        if (![[_page cookie] gtw_hasPrefix:[NSData dataWithBytes:"BPT" length:3]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }
@@ -58,6 +64,11 @@ static NSUInteger integerFromData(NSData* data) {
             return nil;
         }
         [self _loadEntries];
+        
+        if (![[_page cookie] gtw_hasPrefix:[NSData dataWithBytes:"BPT" length:3]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }

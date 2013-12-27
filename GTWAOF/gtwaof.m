@@ -416,7 +416,7 @@ int main(int argc, const char * argv[]) {
             return YES;
         }];
     } else if (!strcmp(op, "export")) {
-        NSLog(@"Exporting from QuadStore #%lld", (long long)pageID);
+//        NSLog(@"Exporting from QuadStore #%lld", (long long)pageID);
         GTWAOFQuadStore* store  = (pageID < 0) ? [[GTWAOFQuadStore alloc] initWithAOF:aof] : [[GTWAOFQuadStore alloc] initWithPageID:pageID fromAOF:aof];
         if (!store) {
             NSLog(@"Failed to create quad store object");

@@ -217,7 +217,7 @@ static const NSInteger valSize  = 8;
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
             GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:node fromAOF:aof];
-            NSLog(@"found b+ tree child node %@", child);
+//            NSLog(@"found b+ tree child node %@", child);
             __block BOOL localStop  = NO;
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop2) {
                 block(key,obj,&localStop);
@@ -296,7 +296,8 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 
 - (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx {
     if (self = [super init]) {
-        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
+        _root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:keySize valueSize:valSize keys:@[] objects:@[] updateContext:ctx];
+//        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
     }
     return self;
 }

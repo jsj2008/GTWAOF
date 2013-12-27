@@ -13,6 +13,10 @@
 
 @implementation GTWAOFPage (GTWAOFLinkedPage)
 
+- (NSData*) cookie {
+    NSData* data    = self.data;
+    return [data subdataWithRange:NSMakeRange(0, 4)];
+}
 - (NSInteger) previousPageID {
     NSData* data    = self.data;
     uint64_t big_prev = 0;

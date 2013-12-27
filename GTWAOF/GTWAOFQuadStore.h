@@ -20,10 +20,12 @@
     GTWAOFPage* _head;
     NSInteger _dictID;
     NSInteger _quadsID;
-    NSInteger _btreeID;
+    NSInteger _btreeSPOGID;
+    NSInteger _btreeID2TermID;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
     GTWAOFBTree* _btreeSPOG;
+    GTWAOFBTree* _btreeID2Term;
     NSCache* _termCache;
 }
 
@@ -44,13 +46,14 @@
     NSMutableArray* _bulkQuads;
     GTWMutableAOFRawDictionary* _mutableDict;
     GTWMutableAOFRawQuads* _mutableQuads;
-    GTWMutableAOFBTree* _mutableBtree;
+    GTWMutableAOFBTree* _mutableBtreeSPOG;
+    GTWMutableAOFBTree* _mutableBtreeID2Term;
 }
 
 @property BOOL bulkLoading;
 
 - (GTWMutableAOFQuadStore*) initWithFilename: (NSString*) filename;
-- (GTWMutableAOFQuadStore*) initWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWMutableAOFRawDictionary*)dict rawQuads:(GTWMutableAOFRawQuads*)quads btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx;
+- (GTWMutableAOFQuadStore*) initWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWMutableAOFRawDictionary*)dict rawQuads:(GTWMutableAOFRawQuads*)quads idToTerm:(GTWAOFBTree*)i2t btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx;
 
 - (void) beginBulkLoad;
 - (void) endBulkLoad;

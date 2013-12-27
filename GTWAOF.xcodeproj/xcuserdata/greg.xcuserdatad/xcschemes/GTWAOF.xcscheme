@@ -74,6 +74,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/test.db"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/compacted3.db"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -109,6 +113,10 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
+            argument = "export"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
             argument = "import"
             isEnabled = "NO">
          </CommandLineArgument>
@@ -118,34 +126,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "compact"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/compacted.db"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/Berlin.ttl"
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "export"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
             argument = "mkbtree"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "btreematch"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "0000000000000001000000000000000200000000000000034e"
-            isEnabled = "NO">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "btreecreate"
             isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>

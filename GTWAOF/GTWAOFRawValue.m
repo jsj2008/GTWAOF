@@ -16,6 +16,7 @@
  */
 #import "GTWAOFRawValue.h"
 #import "GTWAOFUpdateContext.h"
+#import "GTWAOFPage+GTWAOFLinkedPage.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -46,6 +47,11 @@
         _aof    = aof;
         _head   = [aof readPage:pageID];
         [self _loadData];
+        
+        if (![[_head cookie] isEqual:[NSData dataWithBytes:RAW_VALUE_COOKIE length:4]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }
@@ -55,6 +61,11 @@
         _aof    = aof;
         _head   = page;
         [self _loadData];
+        
+        if (![[_head cookie] isEqual:[NSData dataWithBytes:RAW_VALUE_COOKIE length:4]]) {
+            NSLog(@"Bad cookie for raw quads");
+            return nil;
+        }
     }
     return self;
 }

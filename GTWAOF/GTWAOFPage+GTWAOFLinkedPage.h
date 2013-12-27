@@ -17,6 +17,7 @@
  8  prev_page_id
  */
 
+- (NSData*) cookie;
 - (NSDate*) lastModified;
 - (NSInteger) previousPageID;
 
