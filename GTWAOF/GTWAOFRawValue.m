@@ -43,6 +43,10 @@
 }
 
 - (GTWAOFRawValue*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
+    GTWAOFRawValue* d   = [aof cachedObjectForPage:pageID];
+    if (d)
+        return d;
     if (self = [self init]) {
         _aof    = aof;
         _head   = [aof readPage:pageID];
@@ -52,6 +56,7 @@
             NSLog(@"Bad cookie for raw quads");
             return nil;
         }
+        [aof setObject:self forPage:_head.pageID];
     }
     return self;
 }
@@ -66,6 +71,7 @@
             NSLog(@"Bad cookie for raw quads");
             return nil;
         }
+        [aof setObject:self forPage:_head.pageID];
     }
     return self;
 }

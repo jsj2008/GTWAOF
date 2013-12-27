@@ -10,9 +10,10 @@
 #import "GTWAOF.h"
 
 @interface GTWAOFDirectFile : NSObject<GTWAOF> {
-    int fd;
+    int _fd;
 //    NSString* _filename;
     NSCache* _pageCache;
+    NSCache* _objectCache;
 }
 
 @property (readonly) NSString* filename;

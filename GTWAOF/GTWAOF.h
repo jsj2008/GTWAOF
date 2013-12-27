@@ -13,13 +13,14 @@
 #import "GTWAOFPage.h"
 
 @class GTWAOFUpdateContext;
-@protocol GTWAOF <NSObject>
 
+@protocol GTWAOF <NSObject>
 - (NSUInteger) pageCount;
 - (NSUInteger) pageSize;
 - (GTWAOFPage*) readPage: (NSInteger) pageID;
 - (BOOL)updateWithBlock:(BOOL(^)(GTWAOFUpdateContext* ctx))block;
-
+- (id)cachedObjectForPage:(NSInteger)pageID;
+- (void)setObject:(id)object forPage:(NSInteger)pageID;
 @end
 
 @protocol GTWAOFBackedObject <NSObject>

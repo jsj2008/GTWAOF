@@ -13,8 +13,10 @@
 @interface GTWAOFUpdateContext : NSObject<GTWAOF> {
     uint64_t nextPageID;
     id<GTWAOF> _aof;
+    NSMutableDictionary* _pageIndex;
 }
 
+@property (readwrite) BOOL active;
 @property NSMutableSet* registeredObjects;
 @property NSMutableArray* createdPages;
 

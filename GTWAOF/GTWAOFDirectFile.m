@@ -41,14 +41,14 @@
         int sr	= stat(filename, &sbuf);
         if (sr == -1 && errno == ENOENT) {
             struct stat buf;
-            fd			= open(filename, O_CREAT|oflag);
-            if (fd < 0) {
+            _fd			= open(filename, O_CREAT|oflag);
+            if (_fd < 0) {
                 perror("*** failed to create database file");
                 return nil;
             }
-            fchmod(fd, S_IRUSR|S_IWUSR|S_IRGRP);
+            fchmod(_fd, S_IRUSR|S_IWUSR|S_IRGRP);
             _pageSize   = AOF_PAGE_SIZE;
-            fstat(fd, &buf);
+            fstat(_fd, &buf);
             _pageCount  = (buf.st_size / _pageSize);
         } else {
             struct stat buf;
@@ -66,13 +66,13 @@
                 return NULL;
             }
             
-            fd			= open(filename, oflag);
-            if (fd == -1) {
+            _fd			= open(filename, oflag);
+            if (_fd == -1) {
                 perror("*** failed to open database file");
                 return nil;
             }
             _pageSize   = AOF_PAGE_SIZE;
-            fstat(fd, &buf);
+            fstat(_fd, &buf);
             _pageCount	= (buf.st_size / _pageSize);
         }
     }
@@ -83,7 +83,9 @@
     if (self = [super init]) {
         self.updateQueue    = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
         _pageCache          = [[NSCache alloc] init];
+        _objectCache        = [[NSCache alloc] init];
         [_pageCache setCountLimit:32];
+        [_objectCache setCountLimit:128];
     }
     return self;
 }
@@ -105,7 +107,7 @@
 	ssize_t nread       = 0;
 	ssize_t total_read	= 0;
 	do {
-		nread = pread(fd, &(buf[nread]), to_read, offset+total_read);
+		nread = pread(_fd, &(buf[nread]), to_read, offset+total_read);
 		if (nread < 0) {
 			if (errno != EINTR) {
 				perror ("read");
@@ -133,71 +135,87 @@
     @autoreleasepool {
         __block BOOL shouldCommit;
         __block GTWAOFUpdateContext* ctx;
+        __block BOOL ok = YES;
         dispatch_sync(self.updateQueue, ^{
             ctx = [[GTWAOFUpdateContext alloc] initWithAOF:self];
             shouldCommit    = block(ctx);
-        });
-        if (shouldCommit) {
-            NSArray* pages  = ctx.createdPages;
-            if ([pages count]) {
-    //            NSLog(@"Should commit changes in update context: %@", ctx);
-                NSMutableData* data = [NSMutableData data];
-                GTWAOFPage* first   = pages[0];
-                NSInteger prevID    = first.pageID-1;
-                for (GTWAOFPage* p in pages) {
-                    if ([p.data length] != _pageSize) {
-                        NSLog(@"Page has unexpected size %lu", [p.data length]);
-                        return NO;
-                    }
+            if (shouldCommit) {
+                NSArray* pages  = ctx.createdPages;
+                if ([pages count]) {
+        //            NSLog(@"Should commit changes in update context: %@", ctx);
+                    NSMutableData* data = [NSMutableData data];
+                    GTWAOFPage* first   = pages[0];
+                    NSInteger prevID    = first.pageID-1;
+                    for (GTWAOFPage* p in pages) {
+                        if ([p.data length] != _pageSize) {
+                            NSLog(@"Page has unexpected size %lu", [p.data length]);
+                            ok  = NO;
+                            return;
+                        }
 
-                    if (p.pageID == (prevID+1)) {
-    //                    NSLog(@"-> %lu\n", p.pageID);
-                        [data appendData:p.data];
-                        prevID  = p.pageID;
-                    } else {
-                        NSLog(@"Pages aren't consecutive in commit");
-                        return NO;
+                        if (p.pageID == (prevID+1)) {
+        //                    NSLog(@"-> %lu\n", p.pageID);
+                            [data appendData:p.data];
+                            prevID  = p.pageID;
+                        } else {
+                            NSLog(@"Pages aren't consecutive in commit");
+                            ok  = NO;
+                            return;
+                        }
                     }
+                    
+                    off_t offset    = self.pageCount * self.pageSize;
+                    const void* buf = [data bytes];
+                    size_t to_write = [data length];
+                    ssize_t nwrite;
+                    ssize_t written = 0;
+                    while (written < to_write) {
+                        //d		fprintf(stderr, "- trying to write %d bytes to offset %d\n", (int) (to_write-written), (int) (offset+written));
+                        nwrite = pwrite(_fd, (char*)buf+written, to_write-written, offset+written);
+                        if (nwrite < 0) {
+                            if (errno != EINTR) {
+                                perror ("write");
+                                ok  = NO;
+                                return;
+                            }
+                            
+                            /* We are here because write() call was interrupted
+                             * before anything could be written. */
+                        } else {
+                            written += nwrite;
+                        }
+                    }
+                    _pageCount  += [pages count];
+                    for (id<GTWAOFBackedObject> object in ctx.registeredObjects) {
+                        object.aof  = self;
+                    }
+                } else {
+                    NSLog(@"update is empty");
                 }
                 
-                off_t offset    = self.pageCount * self.pageSize;
-                const void* buf   = [data bytes];
-                size_t to_write = [data length];
-                ssize_t nwrite;
-                ssize_t written = 0;
-                while (written < to_write) {
-                    //d		fprintf(stderr, "- trying to write %d bytes to offset %d\n", (int) (to_write-written), (int) (offset+written));
-                    nwrite = pwrite(fd, (char*)buf+written, to_write-written, offset+written);
-                    if (nwrite < 0) {
-                        if (errno != EINTR) {
-                            perror ("write");
-                            return NO;
-                        }
-                        
-                        /* We are here because write() call was interrupted
-                         * before anything could be written. */
-                    } else {
-                        written += nwrite;
-                    }
-                }
-                _pageCount  += [pages count];
-                for (id<GTWAOFBackedObject> object in ctx.registeredObjects) {
-                    object.aof  = self;
-                }
+                ctx.active  = NO;
+                ok  = YES;
+                return;
             } else {
-                NSLog(@"update is empty");
+                ok  = NO;
+                return;
             }
-            
-            return YES;
-        } else {
-            return NO;
-        }
+        });
+        return ok;
     }
 }
 
 - (NSString*) description {
     NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; %@; %lu pages>", NSStringFromClass([self class]), self, _filename, _pageCount];
     return description;
+}
+
+- (id)cachedObjectForPage:(NSInteger)pageID {
+    return [_objectCache objectForKey:@(pageID)];
+}
+
+- (void)setObject:(id)object forPage:(NSInteger)pageID {
+    [_objectCache setObject:object forKey:@(pageID)];
 }
 
 @end

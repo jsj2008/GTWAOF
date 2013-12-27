@@ -20,7 +20,7 @@
     NSDictionary* _revPageDict;
     NSCache* _cache;
     NSCache* _revCache;
-    id _prevPage;
+//    id _prevPage;
 }
 
 @property BOOL verbose;
@@ -35,7 +35,8 @@
 - (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawDictionary*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
 
-- (id) objectForKey:(id)aKey;
+- (NSData*) objectForKey:(id)aKey;
+- (GTWAOFPage*) pageForKey:(id)aKey;
 - (NSEnumerator*) keyEnumerator;
 - (NSData*)keyForObject:(NSData*)anObject;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;

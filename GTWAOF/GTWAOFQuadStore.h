@@ -13,31 +13,36 @@
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFRawQuads.h"
 #import "GTWAOFBTree.h"
+#import <SPARQLKit/SPKTurtleParser.h>
 
 #define QUAD_STORE_COOKIE "QDST"
 
 @interface GTWAOFQuadStore : NSObject<GTWQuadStore,GTWAOFBackedObject> {
     GTWAOFPage* _head;
-    NSInteger _dictID;
-    NSInteger _quadsID;
-    NSInteger _btreeSPOGID;
-    NSInteger _btreeID2TermID;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
     GTWAOFBTree* _btreeSPOG;
     GTWAOFBTree* _btreeID2Term;
-    NSCache* _termCache;
+    GTWAOFBTree* _btreeTerm2ID;
+    SPKSPARQLLexer* _lexer;
+    SPKTurtleParser* _parser;
+    NSCache* _termToNTriplesDataCache;
+    NSCache* _termDataToIDCache;
+    NSCache* _IDToTermCache;
 }
 
-@property BOOL verbose;
+@property (readwrite) BOOL verbose;
 @property (readwrite) id<GTWAOF> aof;
+@property (readonly) GTWAOFBTree* btreeID2Term;
+@property (readonly) GTWAOFBTree* btreeTerm2ID;
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 - (GTWAOFQuadStore*) initWithAOF: (id<GTWAOF>) aof;
 - (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFQuadStore*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
-- (NSSet*) indexes;
+- (NSDictionary*) indexes;
+- (NSData*) hashData:(NSData*)data;
 
 @end
 
@@ -48,12 +53,18 @@
     GTWMutableAOFRawQuads* _mutableQuads;
     GTWMutableAOFBTree* _mutableBtreeSPOG;
     GTWMutableAOFBTree* _mutableBtreeID2Term;
+    GTWMutableAOFBTree* _mutableBtreeTerm2ID;
 }
 
 @property BOOL bulkLoading;
+@property (readwrite) GTWMutableAOFRawDictionary* mutableDict;
+@property (readwrite) GTWMutableAOFRawQuads* mutableQuads;
+@property (readwrite) GTWMutableAOFBTree* mutableBtreeSPOG;
+@property (readwrite) GTWMutableAOFBTree* mutableBtreeID2Term;
+@property (readwrite) GTWMutableAOFBTree* mutableBtreeTerm2ID;
 
 - (GTWMutableAOFQuadStore*) initWithFilename: (NSString*) filename;
-- (GTWMutableAOFQuadStore*) initWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWMutableAOFRawDictionary*)dict rawQuads:(GTWMutableAOFRawQuads*)quads idToTerm:(GTWAOFBTree*)i2t btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx;
+- (GTWMutableAOFQuadStore*) initWithPreviousPageID:(NSInteger)prevID rawDictionary:(GTWMutableAOFRawDictionary*)dict rawQuads:(GTWMutableAOFRawQuads*)quads idToTerm:(GTWAOFBTree*)i2t termToID:(GTWAOFBTree*)t2i btreeIndexes:(NSDictionary*)indexes updateContext:(GTWAOFUpdateContext*) ctx;
 
 - (void) beginBulkLoad;
 - (void) endBulkLoad;

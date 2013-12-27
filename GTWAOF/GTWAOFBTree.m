@@ -16,6 +16,7 @@ static const NSInteger valSize  = 8;
 @implementation GTWAOFBTree
 
 - (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+    assert(aof);
     if (self = [self init]) {
         _aof    = aof;
         _root   = nil;
@@ -42,6 +43,7 @@ static const NSInteger valSize  = 8;
 }
 
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    assert(aof);
     if (self = [self init]) {
         _aof        = aof;
         _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:aof];
@@ -50,6 +52,7 @@ static const NSInteger valSize  = 8;
 }
 
 - (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+    assert(aof);
     if (self = [self init]) {
         _aof    = aof;
         _root       = [[GTWAOFBTreeNode alloc] initWithPage:page parent:nil fromAOF:aof];
@@ -65,8 +68,25 @@ static const NSInteger valSize  = 8;
     return [self.root pageID];
 }
 
+- (NSInteger) keySize {
+    return [self.root keySize];
+}
+
+- (NSInteger) valSize {
+    return [self.root valSize];
+}
+
 - (GTWAOFBTreeNode*) root {
     return _root;
+}
+
+- (id<GTWAOF>) aof {
+    return _aof;
+}
+
+- (void) setAof:(id<GTWAOF>)aof {
+    assert(aof);
+    _aof    = aof;
 }
 
 - (GTWAOFBTreeNode*) leafNodeForKey:(NSData*)key {
@@ -78,6 +98,7 @@ static const NSInteger valSize  = 8;
 }
 
 - (GTWAOFBTreeNode*) lcaNodeForKeysWithPrefix:(NSData*)prefix {
+    assert(_aof);
     GTWAOFBTreeNode* node   = _root;
 //    NSLog(@"looking for lca of prefix %@", prefix);
     while (node.type == GTWAOFBTreeInternalNodeType) {
@@ -147,7 +168,20 @@ static const NSInteger valSize  = 8;
     return node;
 }
 
+- (NSData*) objectForKey:(NSData*)key {
+    assert(_aof);
+    __block NSData* data;
+    [self enumerateKeysAndObjectsMatchingPrefix:key usingBlock:^(NSData *k, NSData *obj, BOOL *stop) {
+        if ([key isEqual:k]) {
+            data    = obj;
+            *stop   = YES;
+        }
+    }];
+    return data;
+}
+
 - (void)enumerateKeysAndObjectsMatchingPrefix:(NSData*)prefix usingBlock:(void (^)(NSData*, NSData*, BOOL*))block {
+    assert(_aof);
     @autoreleasepool {
         GTWAOFBTreeNode* lca    = [self lcaNodeForKeysWithPrefix:prefix];
         if (lca) {
@@ -242,7 +276,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
             [childrenIDs addObject:@(newchild.pageID)];
             [children addObject:newchild];
         }
-        GTWAOFBTreeNode* newnode    = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:node.parent keySize:node.keySize valueSize:node.valSize keys:keys pageIDs:childrenIDs updateContext:ctx];
+        GTWAOFBTreeNode* newnode    = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:node.parent isRoot:(node.parent?YES:NO) keySize:node.keySize valueSize:node.valSize keys:keys pageIDs:childrenIDs updateContext:ctx];
         for (GTWAOFBTreeNode* child in children) {
             [child setParent:newnode];
         }
@@ -250,13 +284,15 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
     } else {
         NSArray* keys   = [node allKeys];
         NSArray* vals   = [node allObjects];
-        return [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:node keySize:node.keySize valueSize:node.valSize keys:keys objects:vals updateContext:ctx];
+        return [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:node isRoot:(node?YES:NO) keySize:node.keySize valueSize:node.valSize keys:keys objects:vals updateContext:ctx];
     }
 }
 
 - (GTWAOFBTree*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
     GTWAOFBTreeNode* newroot    = copy_btree(_aof, ctx, _root);
-    return [[GTWAOFBTree alloc] initWithRootPage:newroot.page fromAOF:ctx];
+    GTWAOFBTree* b  = [[GTWAOFBTree alloc] initWithRootPage:newroot.page fromAOF:ctx];
+    [ctx registerPageObject:b];
+    return b;
 }
 
 @end
@@ -265,6 +301,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 @implementation GTWMutableAOFBTree
 
 - (GTWMutableAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+    assert(aof);
     if (self = [self init]) {
         self.aof    = aof;
         _root   = nil;
@@ -285,7 +322,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
         if (!_root) {
             __block GTWMutableAOFBTreeNode* root;
             [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-                root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:32 valueSize:0 keys:@[] objects:@[] updateContext:ctx];
+                root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:32 valueSize:0 keys:@[] objects:@[] updateContext:ctx];
                 return YES;
             }];
             _root   = root;
@@ -295,14 +332,114 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 }
 
 - (GTWMutableAOFBTree*) initEmptyBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize updateContext:(GTWAOFUpdateContext*) ctx {
+    assert(ctx);
     if (self = [super init]) {
-        _root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:keySize valueSize:valSize keys:@[] objects:@[] updateContext:ctx];
+        self.aof    = ctx;
+        [ctx registerPageObject:self];
+        _root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:keySize valueSize:valSize keys:@[] objects:@[] updateContext:ctx];
 //        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:keySize valueSize:valSize keys:@[] pageIDs:@[] updateContext:ctx];
     }
     return self;
 }
 
+- (NSArray*) nodeArraysWithEnumerator:(NSEnumerator*)enumerator withMininumCount:(NSInteger)minCount maximumCount:(NSInteger)maxCount {
+    NSLog(@"---> %@", enumerator);
+    NSArray* items          = [enumerator allObjects];
+    NSLog(@"---> %@", items);
+    NSMutableArray* data    = [NSMutableArray array];
+    NSMutableArray* array   = [NSMutableArray array];
+    for (id item in items) {
+        [data addObject:item];
+        if ([data count] >= maxCount) {
+            [array addObject:data];
+            data    = [NSMutableArray array];
+        }
+    }
+    if ([data count]) {
+        [array addObject:data];
+        data    = [NSMutableArray array];
+    }
+    
+    if ([array count] > 1) {
+        NSArray* lastLeaf   = [array lastObject];
+        if ([lastLeaf count] < minCount) {
+            [array removeLastObject];
+            NSArray* penultimateLeaf    = [array lastObject];
+            [array removeLastObject];
+            // Redistribute data between last two leaves
+            NSMutableArray* pairs   = [NSMutableArray arrayWithArray:penultimateLeaf];
+            [pairs addObjectsFromArray:lastLeaf];
+            
+            NSInteger count = [pairs count];
+            NSInteger mid   = count/2;
+            NSRange lrange  = NSMakeRange(0, mid);
+            NSRange rrange  = NSMakeRange(mid, count-mid);
+            
+            NSArray* lpairs = [pairs subarrayWithRange:lrange];
+            NSArray* rpairs = [pairs subarrayWithRange:rrange];
+            
+            [array addObject:lpairs];
+            [array addObject:rpairs];
+        }
+    }
+    return array;
+}
+
+- (GTWMutableAOFBTree*) initBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize pairEnumerator:(NSEnumerator*)enumerator updateContext:(GTWAOFUpdateContext*) ctx {
+    NSInteger fillLeaf  = [GTWAOFBTreeNode maxLeafPageKeysForKeySize:keySize valueSize:valSize];
+    NSInteger minLeaf   = fillLeaf/2;
+    NSInteger fillInt   = [GTWAOFBTreeNode maxInternalPageKeysForKeySize:keySize];
+    NSInteger minInt    = fillInt/2;
+//    NSLog(@"internal pages: %lld", (long long)fillInt);
+//    NSLog(@"leaf pages: %lld", (long long)fillLeaf);
+    
+    NSArray* array  = [self nodeArraysWithEnumerator:enumerator withMininumCount:minLeaf maximumCount:fillLeaf];
+    if ([array count]) {
+        NSMutableArray* pages   = [NSMutableArray array];
+        NSInteger i;
+        BOOL root = ([array count] > 1) ? NO : YES;
+        for (i = 0; i < [array count]; i++) {
+            NSArray* leaf   = array[i];
+            NSMutableArray* keys    = [NSMutableArray array];
+            NSMutableArray* vals    = [NSMutableArray array];
+            for (NSArray* pair in leaf) {
+                [keys addObject:pair[0]];
+                [vals addObject:pair[1]];
+            }
+            GTWMutableAOFBTreeNode* node    = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:root keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
+            NSLog(@"Leaf node (root=%d) %lld: %lld data pairs", root, (long long)node.pageID, (long long)[node count]);
+            [pages addObject:node];
+        }
+        
+        while ([pages count] > 1) {
+            array   = [self nodeArraysWithEnumerator:[pages objectEnumerator] withMininumCount:minInt maximumCount:fillInt];
+            pages   = [NSMutableArray array];
+            BOOL root = ([array count] > 1) ? NO : YES;
+            for (NSArray* leaf in array) {
+                NSMutableArray* keys    = [NSMutableArray array];
+                NSMutableArray* vals    = [NSMutableArray array];
+                for (i = 0; i < [leaf count]; i++) {
+                    GTWMutableAOFBTreeNode* child   = leaf[i];
+                    NSData* maxKey  = [child maxKey];
+                    NSInteger pageID    = child.pageID;
+                    [keys addObject:maxKey];
+                    [vals addObject:@(pageID)];
+                }
+                [keys removeLastObject];
+                GTWMutableAOFBTreeNode* node    = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:root keySize:keySize valueSize:valSize keys:keys pageIDs:vals updateContext:ctx];
+                NSLog(@"Internal node (root=%d) %lld: %lld children", root, (long long)node.pageID, (long long)[[node childrenPageIDs] count]);
+                [pages addObject:node];
+                NSLog(@"-------");
+            }
+        }
+        return pages[0];
+    } else {
+        return [self initEmptyBTreeWithKeySize:keySize valueSize:valSize updateContext:ctx];
+    }
+}
+
 - (GTWAOFBTreeNode*) rewriteToRootFromNewNode:(GTWAOFBTreeNode*)newnode replacingOldNode:(GTWAOFBTreeNode*)oldnode updateContext:(GTWAOFUpdateContext*)ctx {
+    assert(ctx);
 //    NSLog(@"rewriting to root from node %@", newnode);
     while (![newnode isRoot]) {
         GTWAOFBTreeNode* oldparent  = newnode.parent;
@@ -343,7 +480,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
         GTWAOFBTreeNode* rhs    = pair[1];
         NSArray* rootKeys       = @[[lhs maxKey]];
         NSArray* rootPageIDs    = @[@(lhs.pageID), @(rhs.pageID)];
-        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:splitnode.keySize valueSize:splitnode.valSize keys:rootKeys pageIDs:rootPageIDs updateContext:ctx];
+        _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:splitnode.keySize valueSize:splitnode.valSize keys:rootKeys pageIDs:rootPageIDs updateContext:ctx];
         
     }
     

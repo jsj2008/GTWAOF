@@ -191,7 +191,16 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         fprintf(stdout, "    Previous-Page : %lld\n", (long long)prev);
     }
     
-    if ([c isEqualToString:@"RDCT"]) {
+    if ([c isEqualToString:@"QDST"]) {
+        GTWAOFQuadStore* obj    = [[GTWAOFQuadStore alloc] initWithPage:p fromAOF:aof];
+        fprintf(stdout, "    Term -> ID    : %lld\n", (long long)obj.btreeTerm2ID.pageID);
+        fprintf(stdout, "    ID -> Term    : %lld\n", (long long)obj.btreeID2Term.pageID);
+        NSDictionary* indexes   = [obj indexes];
+        for (NSString* order in indexes) {
+            GTWAOFBTree* index    = indexes[order];
+            fprintf(stdout, "    %s Index    : %lld\n", [order UTF8String], (long long)index.pageID);
+        }
+    } else if ([c isEqualToString:@"RDCT"]) {
         GTWAOFRawDictionary* obj    = [[GTWAOFRawDictionary alloc] initWithPage:p fromAOF:aof];
         NSUInteger count            = [obj count];
         fprintf(stdout, "    Entries       : %lld\n", (long long)count);
@@ -246,6 +255,8 @@ int main(int argc, const char * argv[]) {
     }
 
     int argi            = 1;
+    
+    BOOL verbose        = NO;
     NSInteger pageID    = -1;
     const char* filename    = "test.db";
     while (argc > argi && argv[argi][0] == '-') {
@@ -255,6 +266,9 @@ int main(int argc, const char * argv[]) {
         } else if (!strcmp(argv[argi], "-p")) {
             argi++;
             pageID    = atoll(argv[argi++]);
+        } else if (!strcmp(argv[argi], "-v")) {
+            argi++;
+            verbose = YES;
         }
     }
 
@@ -446,7 +460,7 @@ int main(int argc, const char * argv[]) {
         }];
     } else if (!strcmp(op, "import")) {
         GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
-        store.verbose       = YES;
+        store.verbose       = verbose;
         __block NSError* error;
         NSString* filename  = [NSString stringWithFormat:@"%s", argv[argi++]];
         const char* basestr = (argc > argi) ? argv[argi++] : "http://base.example.org/";
@@ -460,14 +474,14 @@ int main(int argc, const char * argv[]) {
             [store beginBulkLoad];
             __block NSUInteger count    = 0;
             [p enumerateTriplesWithBlock:^(id<GTWTriple> t) {
+                count++;
+                if (count % 100 == 0) {
+                    fprintf(stderr, "\r%llu quads", (unsigned long long) count);
+                }
                 GTWQuad* q  = [GTWQuad quadFromTriple:t withGraph:graph];
                 [store addQuad:q error:&error];
                 if (error) {
                     NSLog(@"%@", error);
-                }
-                count++;
-                if (count % 250 == 0) {
-                    fprintf(stderr, "\r%llu quads", (unsigned long long) count);
                 }
             } error:&error];
             if (error) {
@@ -557,7 +571,7 @@ int main(int argc, const char * argv[]) {
             vsize   = (NSInteger)atoll(argv[argi++]);
         }
         [aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:ksize valueSize:vsize keys:@[] objects:@[] updateContext:ctx];
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:ksize valueSize:vsize keys:@[] objects:@[] updateContext:ctx];
             NSLog(@"root node: %@", root);
             return YES;
         }];
@@ -603,7 +617,7 @@ int main(int argc, const char * argv[]) {
                     NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
                     [vals addObject:object];
                 }
-                GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
+                GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
                 [pages addObject:leaf];
                 NSLog(@"Created b-tree leaf: %@", leaf);
                 leaf_page++;
@@ -621,7 +635,7 @@ int main(int argc, const char * argv[]) {
                 [rootValues addObject:@(pageID)];
             }
             
-            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:keySize valueSize:valSize keys:rootKeys pageIDs:rootValues updateContext:ctx];
+            GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:keySize valueSize:valSize keys:rootKeys pageIDs:rootValues updateContext:ctx];
             NSLog(@"root node: %@", root);
             return YES;
         }];

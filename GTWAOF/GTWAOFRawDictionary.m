@@ -63,6 +63,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
             NSLog(@"Bad cookie for raw quads");
             return nil;
         }
+        [aof setObject:self forPage:_head.pageID];
     }
     return self;
 }
@@ -81,6 +82,14 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 }
 
 - (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
+    GTWAOFRawDictionary* d   = [aof cachedObjectForPage:pageID];
+    if (d) {
+//        NSLog(@"cached raw dictionary for page %lld", (long long)pageID);
+        return d;
+//    } else {
+//        NSLog(@"NO cached raw dictionary for page %lld", (long long)pageID);
+    }
     if (self = [self init]) {
         _aof    = aof;
         _head   = [aof readPage:pageID];
@@ -90,6 +99,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
             NSLog(@"Bad cookie for raw quads");
             return nil;
         }
+        [aof setObject:self forPage:_head.pageID];
     }
     return self;
 }
@@ -104,6 +114,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
             NSLog(@"Bad cookie for raw quads");
             return nil;
         }
+        [aof setObject:self forPage:_head.pageID];
     }
     return self;
 }
@@ -167,7 +178,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return [keys objectEnumerator];
 }
 
-- (id) objectForKey:(id)aKey {
+- (NSData*) objectForKey:(id)aKey {
     id o    = [_pageDict objectForKey:aKey];
     if (o) {
         return o;
@@ -178,14 +189,27 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return nil;
 }
 
+- (GTWAOFPage*) pageForKey:(id)aKey {
+    id o    = [_pageDict objectForKey:aKey];
+    if (o) {
+        return _head;
+    } else if (self.previousPageID >= 0) {
+        GTWAOFRawDictionary* prev   = [self previousPage];
+        return [prev pageForKey:aKey];
+    }
+    return nil;
+}
+
 - (GTWAOFRawDictionary*) previousPage {
     if (self.previousPageID >= 0) {
-        if (!_prevPage) {
+//        GTWAOFRawDictionary* prevPage   = _prevPage;
+//        if (!prevPage) {
             // TODO: this shouldn't be a strong ivar reference; have a global/scoped cache that holds the references
             GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
-            _prevPage   = prev;
-        }
-        return _prevPage;
+            return prev;
+//            _prevPage   = prev;
+//        }
+//        return prevPage;
     } else {
         return nil;
     }
