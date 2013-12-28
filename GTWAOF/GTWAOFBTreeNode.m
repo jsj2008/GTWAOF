@@ -37,12 +37,17 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWAOFBTreeNode
 
-- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
++ (GTWAOFBTreeNode*) nodeWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
     assert(aof);
     // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
     GTWAOFBTreeNode* d   = [aof cachedObjectForPage:pageID];
     if (d)
         return d;
+    return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:parent fromAOF:aof];
+}
+
+- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
+    assert(aof);
     if (self = [self init]) {
         _aof        = aof;
         _page       = [aof readPage:pageID];
@@ -315,7 +320,7 @@ static inline NSUInteger integerFromData(NSData* data) {
         if (r != NSOrderedDescending) {
             NSNumber* number    = _pageIDs[i];
             NSInteger pageID    = [number integerValue];
-            return [[class alloc] initWithPageID:pageID parent:self fromAOF:_aof];
+            return [class nodeWithPageID:pageID parent:self fromAOF:_aof];
         }
     }
     NSNumber* number    = _pageIDs[count];
@@ -394,7 +399,7 @@ static inline NSUInteger integerFromData(NSData* data) {
         for (i = 0; i <= count; i++) {
             NSNumber* number    = _pageIDs[i];
             NSInteger pageID    = [number integerValue];
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:self fromAOF:_aof];
+            GTWAOFBTreeNode* child  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:self fromAOF:_aof];
             BOOL ok = [child verifyHavingSeenRoot:seenRoot];
             if (!ok)
                 return NO;

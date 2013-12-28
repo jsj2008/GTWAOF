@@ -46,7 +46,7 @@ static const NSInteger valSize  = 8;
     assert(aof);
     if (self = [self init]) {
         _aof        = aof;
-        _root       = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:aof];
+        _root       = [GTWAOFBTreeNode nodeWithPageID:pageID parent:nil fromAOF:aof];
     }
     return self;
 }
@@ -134,7 +134,7 @@ static const NSInteger valSize  = 8;
                 NSArray* childrenIDs    = [node childrenPageIDs];
                 NSNumber* number        = childrenIDs[siblingIndex];
                 NSInteger childPageID   = [number integerValue];
-                GTWAOFBTreeNode* sibling  = [[GTWAOFBTreeNode alloc] initWithPageID:childPageID parent:node fromAOF:_aof];
+                GTWAOFBTreeNode* sibling  = [GTWAOFBTreeNode nodeWithPageID:childPageID parent:node fromAOF:_aof];
                 NSData* siblingMinKey   = [sibling minKey];
     //            NSLog(@"sibling node has min-key: %@", siblingMinKey);
                 if ([siblingMinKey gtw_hasPrefix:prefix]) {
@@ -215,7 +215,7 @@ static const NSInteger valSize  = 8;
                 for (offset = startOffset; offset < [pageIDs count]; offset++) {
                     NSNumber* number    = pageIDs[offset];
                     NSInteger pageID    = [number integerValue];
-                    GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:lca fromAOF:_aof];
+                    GTWAOFBTreeNode* child  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:lca fromAOF:_aof];
                     __block BOOL seenMatchingKey    = NO;
                     __block BOOL localStop          = NO;
                     [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
@@ -250,7 +250,7 @@ static const NSInteger valSize  = 8;
         [node enumerateKeysAndObjectsUsingBlock:block];
     } else {
         [node enumerateKeysAndPageIDsUsingBlock:^(NSData *key, NSInteger pageID, BOOL *stop) {
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:node fromAOF:aof];
+            GTWAOFBTreeNode* child  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:node fromAOF:aof];
 //            NSLog(@"found b+ tree child node %@", child);
             __block BOOL localStop  = NO;
             [GTWAOFBTree enumerateKeysAndObjectsForNode:child aof:aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop2) {
@@ -271,7 +271,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
         NSMutableArray* childrenIDs = [NSMutableArray array];
         NSMutableArray* children    = [NSMutableArray array];
         for (NSNumber* number in ids) {
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:[number integerValue] parent:node fromAOF:aof];
+            GTWAOFBTreeNode* child  = [GTWAOFBTreeNode nodeWithPageID:[number integerValue] parent:node fromAOF:aof];
             GTWAOFBTreeNode* newchild   = copy_btree(aof, ctx, child);
             [childrenIDs addObject:@(newchild.pageID)];
             [children addObject:newchild];
@@ -343,9 +343,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 }
 
 - (NSArray*) nodeArraysWithEnumerator:(NSEnumerator*)enumerator withMininumCount:(NSInteger)minCount maximumCount:(NSInteger)maxCount {
-    NSLog(@"---> %@", enumerator);
     NSArray* items          = [enumerator allObjects];
-    NSLog(@"---> %@", items);
     NSMutableArray* data    = [NSMutableArray array];
     NSMutableArray* array   = [NSMutableArray array];
     for (id item in items) {

@@ -202,14 +202,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 - (GTWAOFRawDictionary*) previousPage {
     if (self.previousPageID >= 0) {
-//        GTWAOFRawDictionary* prevPage   = _prevPage;
-//        if (!prevPage) {
-            // TODO: this shouldn't be a strong ivar reference; have a global/scoped cache that holds the references
-            GTWAOFRawDictionary* prev   = [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
-            return prev;
-//            _prevPage   = prev;
-//        }
-//        return prevPage;
+        return [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
     } else {
         return nil;
     }
@@ -491,20 +484,30 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return data;
 }
 
-- (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+- (GTWMutableAOFRawDictionary*) rewriteWithPageMap:(NSMutableDictionary*)map updateContext:(GTWAOFUpdateContext*) ctx {
     // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     // TODO: need to rewrite RawValue pages, too.
     NSInteger prevID            = -1;
     GTWAOFRawDictionary* prev   = [self previousPage];
     if (prev) {
-        GTWMutableAOFRawDictionary* newprev    = [prev rewriteWithUpdateContext:ctx];
+        GTWMutableAOFRawDictionary* newprev    = [prev rewriteWithPageMap:map updateContext:ctx];
         prevID  = newprev.pageID;
         GTWMutableAOFRawDictionary* newdict    = [newprev dictionaryByAddingDictionary:_pageDict updateContext:ctx];
+        if (map) {
+            map[@(self.pageID)] = @(newdict.pageID);
+        }
         return newdict;
     } else {
         GTWMutableAOFRawDictionary* newdict     = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:_pageDict updateContext:ctx];
+        if (map) {
+            map[@(self.pageID)] = @(newdict.pageID);
+        }
         return newdict;
     }
+}
+
+- (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
+    return [self rewriteWithPageMap:nil updateContext:ctx];
 }
 
 @end

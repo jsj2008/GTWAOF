@@ -63,7 +63,7 @@ static NSUInteger integerFromData(NSData* data) {
 - (void)setUp {
     [super setUp];
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    const char* filename    = "test.db";
+    const char* filename    = "db/test.db";
     _aof    = [[GTWAOFDirectFile alloc] initWithFilename:@(filename)];
 }
 
@@ -96,7 +96,7 @@ static NSUInteger integerFromData(NSData* data) {
             NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
         XCTAssertNotNil(leaf, @"B+ Tree leaf node created");
         return YES;
     }];
@@ -106,7 +106,7 @@ static NSUInteger integerFromData(NSData* data) {
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         NSArray* rootKeys    = @[dataFromIntegers(0,0,0,1), dataFromIntegers(0,0,0,2), dataFromIntegers(0,0,0,3)];
         NSArray* rootValues  = @[@(11), @(22), @(33), @(44)];
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNotNil(root, @"B+ Tree root node created");
         return YES;
     }];
@@ -127,7 +127,7 @@ static NSUInteger integerFromData(NSData* data) {
             }
             [rootValues addObject:@(value)];
         }
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNil(root, @"Overfull B+ Tree root node creation returns nil");
         return YES;
     }];
@@ -156,7 +156,7 @@ static NSUInteger integerFromData(NSData* data) {
             NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
         XCTAssertNil(leaf, @"Overfull B+ Tree leaf node creation returns nil");
         return YES;
     }];
@@ -193,7 +193,7 @@ static NSUInteger integerFromData(NSData* data) {
                 NSData* object   = [NSData dataWithBytes:"\x00\x00\x00\x00\x00\x00\x00\xFF" length:8];
                 [vals addObject:object];
             }
-            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
+            GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:keys objects:vals updateContext:ctx];
             XCTAssertNotNil(leaf, @"B+ Tree leaf node created");
             [pages addObject:leaf];
             leaf_page++;
@@ -211,7 +211,7 @@ static NSUInteger integerFromData(NSData* data) {
             [rootValues addObject:@(pageID)];
         }
         
-        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
+        GTWAOFBTreeNode* root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:32 valueSize:8 keys:rootKeys pageIDs:rootValues updateContext:ctx];
         XCTAssertNotNil(root, @"B+ Tree root node created");
         return YES;
     }];
@@ -240,7 +240,7 @@ static NSUInteger integerFromData(NSData* data) {
             NSData* object   = [NSData dataWithBytes:"\x00\x00\xFF" length:3];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
         XCTAssertNotNil(leaf, @"B+ Tree leaf node created with data sizes {%d, %d}", (int)keySize, (int)valSize);
         if (leaf) {
             pageID  = leaf.pageID;
@@ -250,7 +250,7 @@ static NSUInteger integerFromData(NSData* data) {
     }];
     
     if (pageID >= 0) {
-        GTWAOFBTreeNode* node   = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:_aof];
+        GTWAOFBTreeNode* node   = [GTWAOFBTreeNode nodeWithPageID:pageID parent:nil fromAOF:_aof];
         XCTAssertNotNil(node, @"Retrieved leaf node from AOF");
         NSMutableIndexSet* set = [[NSMutableIndexSet alloc] init];
         __block NSUInteger count    = 0;
@@ -298,7 +298,7 @@ static NSUInteger integerFromData(NSData* data) {
             NSData* object   = [NSData data];
             [vals addObject:object];
         }
-        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
+        GTWAOFBTreeNode* leaf  = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:YES keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
         XCTAssertNotNil(leaf, @"B+ Tree leaf node created with data sizes {%d, %d}", (int)keySize, (int)valSize);
         if (leaf) {
             pageID  = leaf.pageID;
@@ -308,7 +308,7 @@ static NSUInteger integerFromData(NSData* data) {
     }];
     
     if (pageID >= 0) {
-        GTWAOFBTreeNode* node   = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:_aof];
+        GTWAOFBTreeNode* node   = [GTWAOFBTreeNode nodeWithPageID:pageID parent:nil fromAOF:_aof];
         XCTAssertNotNil(node, @"Retrieved leaf node from AOF");
         NSMutableIndexSet* set = [[NSMutableIndexSet alloc] init];
         __block NSUInteger count    = 0;

@@ -12,6 +12,7 @@
 #import <SPARQLKit/SPKNTriplesSerializer.h>
 #import "GTWAOFUpdateContext.h"
 #include <CommonCrypto/CommonDigest.h>
+#import "NSData+GTWTerm.h"
 
 #define BULK_LOADING_BATCH_SIZE 500
 
@@ -41,9 +42,7 @@ static NSUInteger integerFromData(NSData* data) {
     NSData* data    = [_termToNTriplesDataCache objectForKey:t];
     if (data)
         return data;
-    
-    NSString* str   = [SPKNTriplesSerializer nTriplesEncodingOfTerm:t escapingUnicode:NO];
-    data            = [str dataUsingEncoding:NSUTF8StringEncoding];
+    data            = [NSData gtw_dataFromTerm:t];
     [_termToNTriplesDataCache setObject:data forKey:t];
     return data;
 }
@@ -352,23 +351,9 @@ static NSUInteger integerFromData(NSData* data) {
     GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
     NSData* data    = [d keyForObject:idData];
     
-//    
-//    GTWAOFRawDictionary* dict   = _dict;
-//    NSData* data    = [dict keyForObject:idData];
-    NSString* string        = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    SPKSPARQLLexer* lexer   = [_lexer reinitWithString:string];
-    // The parser needs the lexer for cases where a term is more than one token (e.g. datatyped literals)
-    _parser.lexer = lexer;
-    //    NSLog(@"constructing term from data: %@", data);
-    SPKSPARQLToken* t       = [lexer getTokenWithError:nil];
-    if (!t)
+    term            = [data gtw_term];
+    if (!term)
         return nil;
-    
-    term        = [_parser tokenAsTerm:t withErrors:nil];
-    if (!term) {
-        NSLog(@"Cannot create term from token %@", t);
-        return nil;
-    }
     
     [_IDToTermCache setObject:term forKey:idData];
     return term;
@@ -480,15 +465,16 @@ static NSUInteger integerFromData(NSData* data) {
 //        NSLog(@"-> no previous quadstore");
     }
     
+    NSMutableDictionary* dictPageMap    = [NSMutableDictionary dictionary];
     GTWMutableAOFRawQuads* quads        = [_quads rewriteWithUpdateContext:ctx];
-    GTWMutableAOFRawDictionary* dict    = [_dict rewriteWithUpdateContext:ctx];
+    GTWMutableAOFRawDictionary* dict    = [_dict rewriteWithPageMap:dictPageMap updateContext:ctx];
     GTWAOFBTree* spog                   = [_btreeSPOG rewriteWithUpdateContext:ctx];
     GTWAOFBTree* t2i                    = [_btreeTerm2ID rewriteWithUpdateContext:ctx];
     GTWAOFBTree* i2t;
     {
         // the id2term btree needs to be completely reconstructed becaue it has pageIDs of RawDictionary pages in the pair values
         NSMutableArray* pairs           = [NSMutableArray array];
-        NSMutableDictionary* pageMap    = [NSMutableDictionary dictionary];
+        NSDictionary* pageMap    = [dictPageMap copy];
         [_btreeID2Term enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
             uint64_t big_pid = 0;
             [obj getBytes:&big_pid range:NSMakeRange(0, 8)];
@@ -499,13 +485,13 @@ static NSUInteger integerFromData(NSData* data) {
             if (newPageNumber) {
                 newPageID   = [newPageNumber integerValue];
             } else {
-                NSData* termData    = [dict keyForObject:key];
-                GTWAOFPage* p       = [dict pageForKey:termData];
-                newPageID    = p.pageID;
-                pageMap[@(oldPageID)]   = @(newPageID);
+                NSData* termData        = [dict keyForObject:key];
+                GTWAOFPage* p           = [dict pageForKey:termData];
+                newPageID               = p.pageID;
+//                pageMap[@(oldPageID)]   = @(newPageID);
             }
             
-//            NSLog(@"%lld -> %lld", (long long)oldPageID, (long long)newPageID);
+//            NSLog(@"Remapping dictionary page %lld -> %lld", (long long)oldPageID, (long long)newPageID);
             pid     = (int64_t) newPageID;
             big_pid  = NSSwapHostLongLongToBig(pid);
             NSData* value   = [NSData dataWithBytes:&big_pid length:8];

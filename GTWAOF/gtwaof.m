@@ -25,6 +25,7 @@
 #import "GTWAOFRawValue.h"
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
+#import "NSIndexSet+GTWIndexRange.h"
 
 #define BTREE_INTERNAL_NODE_COOKIE "BPTI"
 #define BTREE_LEAF_NODE_COOKIE "BPTL"
@@ -160,7 +161,7 @@ void print_digraph_for_btree_node ( id<GTWAOF> aof, FILE* f, GTWAOFBTreeNode* n 
     if (n.type == GTWAOFBTreeInternalNodeType) {
         NSArray* pageIDs    = [n childrenPageIDs];
         for (NSNumber* number in pageIDs) {
-            GTWAOFBTreeNode* child  = [[GTWAOFBTreeNode alloc] initWithPageID:[number integerValue] parent:n fromAOF:aof];
+            GTWAOFBTreeNode* child  = [GTWAOFBTreeNode nodeWithPageID:[number integerValue] parent:n fromAOF:aof];
             NSString* childNodeName  = [NSString stringWithFormat:@"n%llu", (unsigned long long)child.pageID];
             fprintf(f, "\t%s -> %s ;\n", [nodeName UTF8String], [childNodeName UTF8String]);
         }
@@ -225,8 +226,11 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         }
         if ([c isEqualToString:@"BPTI"]) {
             NSArray* children   = [obj childrenPageIDs];
-            NSString* list      = [children componentsJoinedByString:@", "];
-            fprintf(stdout, "    Children      : %s\n", [list UTF8String]);
+            NSMutableIndexSet* set  = [NSMutableIndexSet indexSet];
+            for (NSNumber* n in children) {
+                [set addIndex:[n integerValue]];
+            }
+            fprintf(stdout, "    Children      : %s\n", [[set gtw_indexRanges] UTF8String]);
         }
     }
 }
@@ -258,7 +262,7 @@ int main(int argc, const char * argv[]) {
     
     BOOL verbose        = NO;
     NSInteger pageID    = -1;
-    const char* filename    = "test.db";
+    const char* filename    = "db/test.db";
     while (argc > argi && argv[argi][0] == '-') {
         if (!strcmp(argv[argi], "-s")) {
             argi++;
@@ -694,7 +698,7 @@ int main(int argc, const char * argv[]) {
             NSString* type  = [[NSString alloc] initWithData:typedata encoding:4];
 //            NSLog(@"-> %@", type);
             if ([type hasPrefix:@"BPT"]) {
-                GTWAOFBTreeNode* n  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:Nil fromAOF:aof];
+                GTWAOFBTreeNode* n  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:Nil fromAOF:aof];
                 print_digraph_for_btree_node(aof, stdout, n);
             }
         }
@@ -716,7 +720,7 @@ int main(int argc, const char * argv[]) {
         if (argc > argi) {
             pageID    = (NSInteger)atoll(argv[argi++]);
         }
-        GTWAOFBTreeNode* b  = [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:nil fromAOF:aof];
+        GTWAOFBTreeNode* b  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:nil fromAOF:aof];
         [b verify];
     } else if (!strcmp(op, "stress")) {
         stress(aof);

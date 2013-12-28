@@ -73,12 +73,16 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/test.db"
-            isEnabled = "YES">
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/db/test.db"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/geo2.db"
+            argument = "/tmp/test.db"
             isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/greg/data/prog/git/sparql/GTWAOF/db/geo3.db"
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "dict"
@@ -114,7 +118,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "export"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "import"
@@ -130,11 +134,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "compact"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/tmp/test.db"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/Berlin.ttl"

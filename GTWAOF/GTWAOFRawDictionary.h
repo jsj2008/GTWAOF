@@ -41,6 +41,7 @@
 - (NSData*)keyForObject:(NSData*)anObject;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(id key, id obj, BOOL *stop))block;
 - (GTWMutableAOFRawDictionary*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
+- (GTWMutableAOFRawDictionary*) rewriteWithPageMap:(NSMutableDictionary*)map updateContext:(GTWAOFUpdateContext*) ctx;
 
 @end
 

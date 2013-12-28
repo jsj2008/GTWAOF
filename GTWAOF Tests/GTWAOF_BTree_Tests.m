@@ -22,7 +22,7 @@
 - (void)setUp {
     [super setUp];
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    const char* filename    = "test.db";
+    const char* filename    = "db/test.db";
     _aof    = [[GTWAOFDirectFile alloc] initWithFilename:@(filename)];
 }
 
