@@ -81,10 +81,25 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     _revPageDict    = [rev copy];
 }
 
-- (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
-    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
++ (GTWAOFRawDictionary*) rawDictionaryWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     GTWAOFRawDictionary* d   = [aof cachedObjectForPage:pageID];
     if (d) {
+        if (![d isKindOfClass:self]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
+        return d;
+    }
+    return [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:aof];
+}
+
+- (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    GTWAOFRawDictionary* d   = [aof cachedObjectForPage:pageID];
+    if (d) {
+        if (![d isKindOfClass:[self class]]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
 //        NSLog(@"cached raw dictionary for page %lld", (long long)pageID);
         return d;
 //    } else {
@@ -202,7 +217,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 - (GTWAOFRawDictionary*) previousPage {
     if (self.previousPageID >= 0) {
-        return [[GTWAOFRawDictionary alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        return [GTWAOFRawDictionary rawDictionaryWithPageID:self.previousPageID fromAOF:_aof];
     } else {
         return nil;
     }
@@ -309,7 +324,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
             offset  += klen;
             unsigned long long pageID = NSSwapBigLongLongToHost((unsigned long long) big_pageID);
 //            NSLog(@"found extended page dictionary pair (on page %llu)", (unsigned long long)pageID);
-            GTWAOFRawValue* v   = [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
+            GTWAOFRawValue* v   = [GTWAOFRawValue rawValueWithPageID:pageID fromAOF:aof];
             NSData* pair        = [v data];
             NSUInteger read     = [self decodeDataPair:pair location:0 usingBlock:block];
 //            NSLog(@"read %llu bytes from extended page(s)", (unsigned long long) read);

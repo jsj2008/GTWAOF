@@ -74,7 +74,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/db/test.db"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/tmp/test.db"
@@ -82,7 +82,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/data/prog/git/sparql/GTWAOF/db/geo3.db"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "dict"
@@ -118,15 +118,19 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "export"
-            isEnabled = "YES">
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "test"
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "import"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/Downloads/geo100k.nt"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "/Users/greg/foaf.ttl"

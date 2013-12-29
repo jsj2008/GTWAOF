@@ -13,6 +13,7 @@
 #import "GTWAOFUpdateContext.h"
 #include <CommonCrypto/CommonDigest.h>
 #import "NSData+GTWTerm.h"
+#import "GTWTermIDGenerator.h"
 
 #define BULK_LOADING_BATCH_SIZE 500
 
@@ -21,11 +22,11 @@
 #define RSVD_OFFSET     24
 #define DATA_OFFSET     32
 
-static NSData* dataFromInteger(NSUInteger value) {
-    long long n = (long long) value;
-    long long bign  = NSSwapHostLongLongToBig(n);
-    return [NSData dataWithBytes:&bign length:8];
-}
+//static NSData* dataFromInteger(NSUInteger value) {
+//    long long n = (long long) value;
+//    long long bign  = NSSwapHostLongLongToBig(n);
+//    return [NSData dataWithBytes:&bign length:8];
+//}
 
 static NSUInteger integerFromData(NSData* data) {
     long long bign;
@@ -169,10 +170,10 @@ static NSUInteger integerFromData(NSData* data) {
             _btreeID2Term   = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
         } else if ([typeName isEqualToString:@"DICT"]) {
 //            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
-            _dict   = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
+            _dict   = [GTWAOFRawDictionary rawDictionaryWithPageID:pageID fromAOF:self.aof];
         } else if ([typeName isEqualToString:@"QUAD"]) {
 //            NSLog(@"Found Raw Quads index at page %llu", (unsigned long long)pageID);
-            _quads   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:self.aof];
+            _quads   = [GTWAOFRawQuads rawQuadsWithPageID:pageID fromAOF:self.aof];
         } else {
             NSLog(@"Unexpected index pointer for page %llu: %@", (unsigned long long)pageID, typeName);
             return NO;
@@ -209,7 +210,7 @@ static NSUInteger integerFromData(NSData* data) {
 
 - (GTWAOFRawQuads*) previousPage {
     if (self.previousPageID >= 0) {
-        return [[GTWAOFRawQuads alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        return [GTWAOFRawQuads rawQuadsWithPageID:self.previousPageID fromAOF:_aof];
     } else {
         return nil;
     }
@@ -336,7 +337,14 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 - (id<GTWTerm>) _termFromIDData:(NSData*)idData {
-    id<GTWTerm> term    = [_IDToTermCache objectForKey:idData];
+    id<GTWTerm> term;
+    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] init];
+    term    = [gen termForIdentifier:idData];
+    if (term) {
+        return term;
+    }
+    
+    term    = [_IDToTermCache objectForKey:idData];
     if (term) {
         return term;
     }
@@ -348,8 +356,16 @@ static NSUInteger integerFromData(NSData* data) {
     [pageData getBytes:&big_pid range:NSMakeRange(0, 8)];
     unsigned long long pid = NSSwapBigLongLongToHost((unsigned long long) big_pid);
     NSInteger pageID    = (NSInteger) pid;
-    GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
+    GTWAOFRawDictionary* d  = [GTWAOFRawDictionary rawDictionaryWithPageID:pageID fromAOF:self.aof];
+    if (!d) {
+        NSLog(@"Bad dictionary page %lld for term ID %@", (long long)pageID, idData);
+        return nil;
+    }
     NSData* data    = [d keyForObject:idData];
+    if (!data) {
+        NSLog(@"No data found in dictionary page for term ID %@", idData);
+        return nil;
+    }
     
     term            = [data gtw_term];
     if (!term)
@@ -415,7 +431,7 @@ static NSUInteger integerFromData(NSData* data) {
         }
     }];
     if (NO) {
-        // TODO: if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
+        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
         [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
             NSData* data        = obj;
             id<GTWQuad> q       = dataToQuad(data);
@@ -488,7 +504,6 @@ static NSUInteger integerFromData(NSData* data) {
                 NSData* termData        = [dict keyForObject:key];
                 GTWAOFPage* p           = [dict pageForKey:termData];
                 newPageID               = p.pageID;
-//                pageMap[@(oldPageID)]   = @(newPageID);
             }
             
 //            NSLog(@"Remapping dictionary page %lld -> %lld", (long long)oldPageID, (long long)newPageID);
@@ -816,75 +831,49 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
             [self flushBulkQuads];
         }
         return YES;
-    }
-    __block NSUInteger nextID   = [self nextID];
-    NSMutableDictionary* map    = [NSMutableDictionary dictionary];
-    NSMutableData* quadData     = [NSMutableData data];
-    for (id<GTWTerm> t in [q allValues]) {
-        NSData* termData    = [self dataFromTerm:t];
-        NSData* ident       = map[termData];
-        if (!ident) {
-            ident           = [self _IDDataFromTermData:termData];
-            //            NSLog(@"term already has ID: %@", ident);
-        }
-        if (!ident) {
-            //            NSLog(@"term does not yet have an ID: %@", t);
-            ident           = dataFromInteger(nextID++);
-            map[termData]   = ident;
-        }
-        [quadData appendData:ident];
-    }
-    
-    GTWMutableAOFBTree* spog    = self.mutableBtreeSPOG;
-    GTWMutableAOFBTree* i2t     = self.mutableBtreeID2Term;
-    GTWMutableAOFBTree* t2i     = self.mutableBtreeTerm2ID;
-    if ([map count]) {
-        self.mutableDict    = [self.mutableDict dictionaryByAddingDictionary:map];
-        
-        // TODO: add id->term data to i2t
-//        NSLog(@"map: %@", map);
-//        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-//            [i2t insertValue:[NSData data] forKey:quadData updateContext:ctx];
-//        }];
-    }
-    
-    __block GTWMutableAOFRawQuads* rawquads = self.mutableQuads;
-    BOOL bulkLoading            = _bulkLoading;
-    GTWAOFRawDictionary* dict   = _dict;
-    NSInteger prevID            = [self pageID];
-    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        if (NO) {
-            // don't duplicate the quad in the rawquads and the btree; at some point, we can add here until we overflow and then bulk load the rawquads into the btree
-            rawquads   = [rawquads mutableQuadsByAddingQuads:@[quadData] updateContext:ctx];
-        }
-        [spog insertValue:[NSData data] forKey:quadData updateContext:ctx];
-        if (!bulkLoading) {
-            // rewrite QuadStore header page
-            [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:rawquads idToTerm:i2t termToID:t2i btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
-        }
+    } else {
+        [self addQuads:@[q] error:error];
+        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
+            return YES;
+        }];
         return YES;
-    }];
-    
-    return YES;
+    }
 }
 
+/**
+ Caller is responsible for calling the writeNewQuadStoreHeaderPage... method to write a new header page.
+ */
 - (BOOL) addQuads: (NSArray*) quads error:(NSError *__autoreleasing*)error {
     __block NSUInteger nextID   = [self nextID];
     NSMutableDictionary* map    = [NSMutableDictionary dictionary];
     NSMutableArray* quadsData   = [NSMutableArray array];
+    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:nextID];
     for (id<GTWQuad> q in quads) {
         NSMutableData* quadData = [NSMutableData data];
         for (id<GTWTerm> t in [q allValues]) {
-            NSData* termData    = [self dataFromTerm:t];
-            NSData* ident       = map[termData];
+            NSData* ident      = [gen identifierForTerm:t assign:NO];
             if (!ident) {
-                ident           = [self _IDDataFromTermData:termData];
-                //                NSLog(@"term already has ID: %@", ident);
+                NSData* termData    = [self dataFromTerm:t];
+                ident       = map[termData];
+                if (!ident) {
+                    ident           = [self _IDDataFromTermData:termData];
+                    //                NSLog(@"term already has ID: %@", ident);
+                }
+                if (!ident) {
+                    //                NSLog(@"term does not yet have an ID: %@", t);
+                    ident      = [gen identifierForTerm:t assign:YES];
+                    if (!ident || [ident length] != 8) {
+                        NSLog(@"Unexpected term ID: %@", ident);
+                        break;
+                    }
+//                    ident           = dataFromInteger(nextID++);
+                    map[termData]   = ident;
+                }
             }
-            if (!ident) {
-                //                NSLog(@"term does not yet have an ID: %@", t);
-                ident           = dataFromInteger(nextID++);
-                map[termData]   = ident;
+            if (!memcmp(ident.bytes, "\x09", 1)) {
+                NSLog(@"-----> %@", ident);
+                NSLog(@"-> %@", q);
             }
             [quadData appendData:ident];
         }
@@ -915,7 +904,12 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
                 NSData* hash    = [self hashData:termData];
                 NSData* termID  = map[termData];
                 GTWAOFPage* p   = [dict pageForKey:termData];
-                NSInteger pageID    = p.pageID;
+                NSInteger pageID;
+                if (p) {
+                    pageID  = p.pageID;
+                } else {
+                    pageID  = -1;
+                }
 //                NSLog(@"map: %@ -> %lld", termID, (long long)pageID);
                 
                 int64_t pid     = (int64_t) pageID;
@@ -963,7 +957,7 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
             [pages addObject:@(quads.pageID)];
             NSInteger prev  = quads.previousPageID;
             if (prev >= 0) {
-                quads   = [[GTWAOFRawQuads alloc] initWithPageID:prev fromAOF:self.aof];
+                quads   = [GTWAOFRawQuads rawQuadsWithPageID:prev fromAOF:self.aof];
             } else {
                 break;
             }
@@ -975,7 +969,7 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
         //        NSLog(@"-> page head list: %@", [pages componentsJoinedByString:@", "]);
         
         NSMutableArray* quadsData   = [NSMutableArray array];
-        GTWAOFRawQuads* quadsPage   = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:self.aof];
+        GTWAOFRawQuads* quadsPage   = [GTWAOFRawQuads rawQuadsWithPageID:pageID fromAOF:self.aof];
         [GTWAOFRawQuads enumerateObjectsForPage:pageID fromAOF:self.aof usingBlock:^(NSData *key, NSRange range, NSUInteger idx, BOOL *stop) {
             NSData* quadData    = [key subdataWithRange:range];
             if (![quadData isEqual:removeQuadData]) {
@@ -1068,14 +1062,8 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
     _bulkLoading    = NO;
 
     // rewrite QuadStore header page
-    GTWAOFRawDictionary* dict   = _dict;
-    GTWAOFRawQuads* quads       = _quads;
-    GTWAOFBTree* spog           = _btreeSPOG;
-    GTWAOFBTree* i2t            = _btreeID2Term;
-    GTWAOFBTree* t2i            = _btreeTerm2ID;
-    NSInteger prevID            = [self pageID];
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:quads idToTerm:i2t termToID:t2i btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
+        [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
         return YES;
     }];
 }

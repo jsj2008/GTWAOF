@@ -31,6 +31,7 @@
 - (NSInteger) pageID;
 - (NSInteger) previousPageID;
 
++ (GTWAOFRawDictionary*) rawDictionaryWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawDictionary*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;

@@ -39,10 +39,14 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 + (GTWAOFBTreeNode*) nodeWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
     assert(aof);
-    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
     GTWAOFBTreeNode* d   = [aof cachedObjectForPage:pageID];
-    if (d)
+    if (d) {
+        if (![d isKindOfClass:[GTWAOFBTreeNode class]]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
         return d;
+    }
     return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:parent fromAOF:aof];
 }
 
@@ -69,10 +73,14 @@ static inline NSUInteger integerFromData(NSData* data) {
 }
 
 - (GTWAOFBTreeNode*) initWithPage:(GTWAOFPage*)page parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
-    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
     GTWAOFBTreeNode* d   = [aof cachedObjectForPage:page.pageID];
-    if (d)
+    if (d) {
+        if (![d isKindOfClass:[GTWAOFBTreeNode class]]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)page.pageID);
+            return nil;
+        }
         return d;
+    }
     if (self = [self init]) {
         _aof        = aof;
         _page       = page;
@@ -621,7 +629,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 + (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
     // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
     assert(node.type == GTWAOFBTreeLeafNodeType);
-    // TODO: assert that node isn't full
+    assert(![node isFull]);
     NSMutableArray* keys    = [[node allKeys] mutableCopy];
     NSMutableArray* vals    = [[node allObjects] mutableCopy];
     NSUInteger i    = -1;
@@ -643,7 +651,6 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 + (NSArray*) splitLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
     assert(node.type == GTWAOFBTreeLeafNodeType);
-    // TODO: assert that node isn't full
     NSMutableArray* keys    = [[node allKeys] mutableCopy];
     NSMutableArray* vals    = [[node allObjects] mutableCopy];
     NSUInteger i    = -1;
@@ -711,7 +718,6 @@ static inline NSUInteger integerFromData(NSData* data) {
         [children insertObject:@(lhs.pageID) atIndex:i];
     }
     
-    // TODO: check if page will overflow
     if ([keys count] > node.maxInternalPageKeys) {
         NSInteger count = [children count];
         NSInteger mid   = count/2;

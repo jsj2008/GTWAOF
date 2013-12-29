@@ -27,6 +27,7 @@
 - (GTWAOFPage*) head;
 - (GTWAOFRawQuads*) previousPage;
 
++ (GTWAOFRawQuads*) rawQuadsWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawQuads*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawQuads*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;

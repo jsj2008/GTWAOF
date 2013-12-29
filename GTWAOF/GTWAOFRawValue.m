@@ -42,11 +42,19 @@
     self.data   = [data copy];
 }
 
-- (GTWAOFRawValue*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
-    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
++ (GTWAOFRawValue*) rawValueWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     GTWAOFRawValue* d   = [aof cachedObjectForPage:pageID];
-    if (d)
+    if (d) {
+        if (![d isKindOfClass:self]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
         return d;
+    }
+    return [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
+}
+
+- (GTWAOFRawValue*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
         _head   = [aof readPage:pageID];
@@ -94,7 +102,7 @@
 }
 
 - (GTWAOFRawValue*) previousPage {
-    GTWAOFRawValue* prev   = [[GTWAOFRawValue alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+    GTWAOFRawValue* prev   = [GTWAOFRawValue rawValueWithPageID:self.previousPageID fromAOF:_aof];
     return prev;
 }
 

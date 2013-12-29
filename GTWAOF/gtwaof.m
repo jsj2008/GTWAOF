@@ -11,6 +11,7 @@
 #import <Foundation/Foundation.h>
 #import "GTWAOF.h"
 #import "GTWAOFDirectFile.h"
+#import "GTWAOFMemory.h"
 #import "GTWAOFUpdateContext.h"
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFRawQuads.h"
@@ -335,7 +336,7 @@ int main(int argc, const char * argv[]) {
         [d dictionaryByAddingDictionary:dict];
     } else if (!strcmp(op, "value")) {
         long long pageID    = atoll(argv[argi++]);
-        GTWAOFRawValue* v   = [[GTWAOFRawValue alloc] initWithPageID:pageID fromAOF:aof];
+        GTWAOFRawValue* v   = [GTWAOFRawValue rawValueWithPageID:pageID fromAOF:aof];
         NSData* data        = [v data];
         NSString* s         = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         fprintf(stdout, "%s\n", [s UTF8String]);
@@ -462,6 +463,65 @@ int main(int argc, const char * argv[]) {
             [store rewriteWithUpdateContext:ctx];
             return YES;
         }];
+    } else if (!strcmp(op, "test")) {
+        id<GTWAOF> mem  = [[GTWAOFMemory alloc] init];
+        GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:mem];
+        
+        // Import
+        {
+            store.verbose       = verbose;
+            __block NSError* error;
+            NSString* filename  = [NSString stringWithFormat:@"%s", argv[argi++]];
+            const char* basestr = (argc > argi) ? argv[argi++] : "http://base.example.org/";
+            NSString* base      = [NSString stringWithFormat:@"%s", basestr];
+            NSFileHandle* fh    = [NSFileHandle fileHandleForReadingAtPath:filename];
+            SPKSPARQLLexer* l   = [[SPKSPARQLLexer alloc] initWithFileHandle:fh];
+            GTWIRI* baseuri     = [[GTWIRI alloc] initWithValue:base];
+            GTWIRI* graph       = [[GTWIRI alloc] initWithValue:base];
+            SPKTurtleParser* p  = [[SPKTurtleParser alloc] initWithLexer:l base: baseuri];
+            if (p) {
+                double start_import = current_time();
+                [store beginBulkLoad];
+                __block NSUInteger count    = 0;
+                [p enumerateTriplesWithBlock:^(id<GTWTriple> t) {
+                    count++;
+                    if (count % 100 == 0) {
+                        fprintf(stderr, "\r%llu quads", (unsigned long long) count);
+                    }
+                    GTWQuad* q  = [GTWQuad quadFromTriple:t withGraph:graph];
+                    [store addQuad:q error:&error];
+                    if (error) {
+                        NSLog(@"%@", error);
+                    }
+                } error:&error];
+                if (error) {
+                    NSLog(@"%@", error);
+                }
+                [store endBulkLoad];
+                fprintf(stderr, "import time: %lf\n", elapsed_time(start_import));
+                fprintf(stderr, "\r%llu quads imported\n", (unsigned long long) count);
+            } else {
+                NSLog(@"Could not construct parser");
+            }
+        }
+        
+        // Export
+        {
+            SPKTurtleParser* parser  = [[SPKTurtleParser alloc] init];
+            id<GTWTerm> s, p, o, g;
+            if (argc > argi) {
+                const char* ss  = argv[argi++];
+                s   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+            }
+            NSError* error;
+            double start_export = current_time();
+            NSDate* date    = [store lastModifiedDateForQuadsMatchingSubject:s predicate:p object:o graph:g error:&error];
+            NSLog(@"Last-Modified: %@", [date descriptionWithCalendarFormat:@"%Y-%m-%dT%H:%M:%S%z" timeZone:[NSTimeZone localTimeZone] locale:[NSLocale currentLocale]]);
+            [store enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
+                fprintf(stdout, "%s\n", [[q description] UTF8String]);
+            } error:&error];
+            fprintf(stderr, "export time: %lf\n", elapsed_time(start_export));
+        }
     } else if (!strcmp(op, "import")) {
         GTWMutableAOFQuadStore* store  = [[GTWMutableAOFQuadStore alloc] initWithAOF:aof];
         store.verbose       = verbose;
@@ -475,6 +535,7 @@ int main(int argc, const char * argv[]) {
         GTWIRI* graph       = [[GTWIRI alloc] initWithValue:base];
         SPKTurtleParser* p  = [[SPKTurtleParser alloc] initWithLexer:l base: baseuri];
         if (p) {
+            double start_import = current_time();
             [store beginBulkLoad];
             __block NSUInteger count    = 0;
             [p enumerateTriplesWithBlock:^(id<GTWTriple> t) {
@@ -492,6 +553,7 @@ int main(int argc, const char * argv[]) {
                 NSLog(@"%@", error);
             }
             [store endBulkLoad];
+            fprintf(stderr, "import time: %lf\n", elapsed_time(start_import));
             fprintf(stderr, "\r%llu quads imported\n", (unsigned long long) count);
         } else {
             NSLog(@"Could not construct parser");
@@ -667,7 +729,7 @@ int main(int argc, const char * argv[]) {
         if (argc > argi) {
             pageID    = (NSInteger)atoll(argv[argi++]);
         }
-        GTWAOFRawDictionary* dict   = [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:aof];
+        GTWAOFRawDictionary* dict   = [GTWAOFRawDictionary rawDictionaryWithPageID:pageID fromAOF:aof];
         [newaof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
             [dict rewriteWithUpdateContext:ctx];
             return YES;

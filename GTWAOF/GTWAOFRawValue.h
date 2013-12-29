@@ -27,6 +27,7 @@
 - (NSInteger) previousPageID;
 - (GTWAOFPage*) head;
 
++ (GTWAOFRawValue*) rawValueWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawValue*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFRawValue*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof;
 

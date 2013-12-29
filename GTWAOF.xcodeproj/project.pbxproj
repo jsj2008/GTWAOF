@@ -32,6 +32,12 @@
 		37527E9218564EE80085556E /* GTWAOFRawQuads.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E9018564EE80085556E /* GTWAOFRawQuads.m */; };
 		37527E95185682D20085556E /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
 		37527E96185682D20085556E /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
+		37528E82186F75A2004C5C1B /* GTWAOFMemory.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E81186F75A2004C5C1B /* GTWAOFMemory.m */; };
+		37528E83186F75A2004C5C1B /* GTWAOFMemory.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E81186F75A2004C5C1B /* GTWAOFMemory.m */; };
+		37528E84186F75A2004C5C1B /* GTWAOFMemory.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E81186F75A2004C5C1B /* GTWAOFMemory.m */; };
+		37528E8C186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */; };
+		37528E8D186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */; };
+		37528E8E186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */; };
 		375A71B8185D6FA40060C151 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
 		375A71B9185D6FA40060C151 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
 		375B76DB18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */; };
@@ -119,6 +125,10 @@
 		37527E9018564EE80085556E /* GTWAOFRawQuads.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFRawQuads.m; sourceTree = "<group>"; };
 		37527E93185682D20085556E /* GTWAOFQuadStore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFQuadStore.h; sourceTree = "<group>"; };
 		37527E94185682D20085556E /* GTWAOFQuadStore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFQuadStore.m; sourceTree = "<group>"; };
+		37528E80186F75A2004C5C1B /* GTWAOFMemory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFMemory.h; sourceTree = "<group>"; };
+		37528E81186F75A2004C5C1B /* GTWAOFMemory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFMemory.m; sourceTree = "<group>"; };
+		37528E8A186F7DFE004C5C1B /* GTWTermIDGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWTermIDGenerator.h; sourceTree = "<group>"; };
+		37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWTermIDGenerator.m; sourceTree = "<group>"; };
 		375A71B6185D6FA40060C151 /* GZIP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GZIP.h; sourceTree = "<group>"; };
 		375A71B7185D6FA40060C151 /* GZIP.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GZIP.m; sourceTree = "<group>"; };
 		375B76D918626A8100F1CE1E /* GTWAOFBTreeNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFBTreeNode.h; sourceTree = "<group>"; };
@@ -222,6 +232,8 @@
 				37527E64185511660085556E /* GTWAOF.h */,
 				37527E93185682D20085556E /* GTWAOFQuadStore.h */,
 				37527E94185682D20085556E /* GTWAOFQuadStore.m */,
+				37528E8A186F7DFE004C5C1B /* GTWTermIDGenerator.h */,
+				37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */,
 				3758BB2A186900BC008B0185 /* Database Page Management */,
 				3758BB2C1869256E008B0185 /* Quads */,
 				3758BB2818690095008B0185 /* Dictionary */,
@@ -283,6 +295,8 @@
 				37527E6C18552F6D0085556E /* GTWAOFUpdateContext.m */,
 				37527E681855177C0085556E /* GTWAOFDirectFile.h */,
 				37527E691855177C0085556E /* GTWAOFDirectFile.m */,
+				37528E80186F75A2004C5C1B /* GTWAOFMemory.h */,
+				37528E81186F75A2004C5C1B /* GTWAOFMemory.m */,
 				37527E65185515C10085556E /* GTWAOFPage.h */,
 				37527E66185515C10085556E /* GTWAOFPage.m */,
 			);
@@ -460,8 +474,10 @@
 				375A71B8185D6FA40060C151 /* GZIP.m in Sources */,
 				378627281856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				37527E95185682D20085556E /* GTWAOFQuadStore.m in Sources */,
+				37528E82186F75A2004C5C1B /* GTWAOFMemory.m in Sources */,
 				375B76DF186371A800F1CE1E /* NSData+GTWCompare.m in Sources */,
 				37527E6D18552F6D0085556E /* GTWAOFUpdateContext.m in Sources */,
+				37528E8C186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */,
 				37527E67185515C10085556E /* GTWAOFPage.m in Sources */,
 				3770888E186E6B07003EC518 /* NSData+GTWTerm.m in Sources */,
 			);
@@ -474,6 +490,7 @@
 				37527E82185584320085556E /* GTWAOFRawDictionary.m in Sources */,
 				375A71B9185D6FA40060C151 /* GZIP.m in Sources */,
 				375B76E41863A9B200F1CE1E /* GTWAOFBTree.m in Sources */,
+				37528E8D186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */,
 				370F1303185F75BA00810F2F /* GTWAOFRawValue.m in Sources */,
 				378627291856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
 				375B76DC18626A8100F1CE1E /* GTWAOFBTreeNode.m in Sources */,
@@ -481,6 +498,7 @@
 				37527E9218564EE80085556E /* GTWAOFRawQuads.m in Sources */,
 				37527E8518558CE20085556E /* gtwaof.m in Sources */,
 				37527E96185682D20085556E /* GTWAOFQuadStore.m in Sources */,
+				37528E83186F75A2004C5C1B /* GTWAOFMemory.m in Sources */,
 				37527E7C18553F670085556E /* GTWAOFUpdateContext.m in Sources */,
 				375B76E0186371A800F1CE1E /* NSData+GTWCompare.m in Sources */,
 				37527E7D18553F670085556E /* GTWAOFDirectFile.m in Sources */,
@@ -494,6 +512,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				372CC39818665A4100265B32 /* GTWAOF_BTree_Tests.m in Sources */,
+				37528E8E186F7DFE004C5C1B /* GTWTermIDGenerator.m in Sources */,
 				3770888B186E5231003EC518 /* NSIndexSet+GTWIndexRange.m in Sources */,
 				37FEA4AD18640A9B00A0BCC2 /* GTWAOFQuadStore.m in Sources */,
 				37FEA4AE18640A9B00A0BCC2 /* GTWAOFUpdateContext.m in Sources */,
@@ -506,6 +525,7 @@
 				37FEA4B518640A9B00A0BCC2 /* GZIP.m in Sources */,
 				37708890186E6B07003EC518 /* NSData+GTWTerm.m in Sources */,
 				37FEA4B618640A9B00A0BCC2 /* NSData+GTWCompare.m in Sources */,
+				37528E84186F75A2004C5C1B /* GTWAOFMemory.m in Sources */,
 				37FEA4B718640A9B00A0BCC2 /* GTWAOFBTree.m in Sources */,
 				37FEA4B818640A9B00A0BCC2 /* GTWAOFBTreeNode.m in Sources */,
 				37FEA4A4186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m in Sources */,

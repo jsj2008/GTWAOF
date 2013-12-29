@@ -59,11 +59,19 @@
     return self;
 }
 
-- (GTWAOFRawQuads*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
-    // TODO: make an autoreleased method so that when a cached object is present, we haven't already called [Class alloc]
++ (GTWAOFRawQuads*) rawQuadsWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     GTWAOFRawQuads* q   = [aof cachedObjectForPage:pageID];
-    if (q)
+    if (q) {
+        if (![q isKindOfClass:self]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
         return q;
+    }
+    return [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:aof];
+}
+
+- (GTWAOFRawQuads*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
         _head   = [aof readPage:pageID];
@@ -110,7 +118,7 @@
 
 - (GTWAOFRawQuads*) previousPage {
     if (self.previousPageID >= 0) {
-        return [[GTWAOFRawQuads alloc] initWithPageID:self.previousPageID fromAOF:_aof];
+        return [GTWAOFRawQuads rawQuadsWithPageID:self.previousPageID fromAOF:_aof];
     } else {
         return nil;
     }
@@ -170,7 +178,7 @@
 + (void)enumerateObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange range, NSUInteger idx, BOOL *stop))block followTail:(BOOL)follow {
     @autoreleasepool {
         while (pageID >= 0) {
-            GTWAOFRawQuads* q  = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:aof];
+            GTWAOFRawQuads* q  = [GTWAOFRawQuads rawQuadsWithPageID:pageID fromAOF:aof];
 //            NSLog(@"Quads Page: %lu", q.pageID);
 //            NSLog(@"Quads Page Last-Modified: %@", [q lastModified]);
             GTWAOFPage* p   = q.head;
