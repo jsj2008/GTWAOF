@@ -14,6 +14,7 @@
 #include <CommonCrypto/CommonDigest.h>
 #import "NSData+GTWTerm.h"
 #import "GTWTermIDGenerator.h"
+#import <SPARQLKit/SPARQLKit.h>
 
 #define BULK_LOADING_BATCH_SIZE 500
 
@@ -39,33 +40,21 @@ static NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWAOFQuadStore
 
-- (NSData*) dataFromTerm: (id<GTWTerm>) t {
-    NSData* data    = [_termToNTriplesDataCache objectForKey:t];
-    if (data)
-        return data;
-    data            = [NSData gtw_dataFromTerm:t];
-    [_termToNTriplesDataCache setObject:data forKey:t];
-    return data;
++ (NSString*) usage {
+    return @"{ \"file\": <Path to AOF file> }";
 }
 
-- (NSInteger) lastQuadStoreHeaderPageID {
-    NSInteger pageID;
-    NSInteger pageCount = [self.aof pageCount];
-    NSInteger headerPageID  = -1;
-    for (pageID = pageCount-1; pageID >= 0; pageID--) {
-//        NSLog(@"Checking page %lu for dictionary head", pageID);
-        GTWAOFPage* p   = [self.aof readPage:pageID];
-        NSData* data    = p.data;
-        NSString* cookie  = [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(0, 4)] encoding:NSUTF8StringEncoding];
-        if ([cookie isEqual:@(QUAD_STORE_COOKIE)]) {
-            headerPageID    = pageID;
-            break;
-        } else {
-//            NSLog(@"- cookie: %@", cookie);
-        }
-    }
-    
-    return headerPageID;
++ (NSDictionary*) classesImplementingProtocols {
+    NSSet* set  = [NSSet setWithObjects:@protocol(GTWQuadStore), nil];
+    return @{ (id)[GTWAOFQuadStore class]: set };
+}
+
++ (NSSet*) implementedProtocols {
+    return [NSSet setWithObjects:@protocol(GTWQuadStore), nil];
+}
+
+- (instancetype) initWithDictionary: (NSDictionary*) dictionary {
+    return [self initWithFilename:dictionary[@"file"]];
 }
 
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename {
@@ -76,7 +65,7 @@ static NSUInteger integerFromData(NSData* data) {
         
         NSInteger headerPageID  = [self lastQuadStoreHeaderPageID];
         if (headerPageID < 0) {
-            NSLog(@"Failed to find a QuadStore page in AOF file");
+            NSLog(@"Failed to find a GTWAOFQuadStore page in AOF file %@", filename);
             return nil;
             //            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
         } else {
@@ -95,7 +84,7 @@ static NSUInteger integerFromData(NSData* data) {
 
         NSInteger headerPageID  = [self lastQuadStoreHeaderPageID];
         if (headerPageID < 0) {
-            NSLog(@"Failed to find a QuadStore page in AOF file");
+            NSLog(@"Failed to find a GTWAOFQuadStore page in AOF file %@", aof);
             return nil;
             //            return [GTWAOFRawQuads quadsWithQuads:@[] aof:aof];
         } else {
@@ -128,6 +117,49 @@ static NSUInteger integerFromData(NSData* data) {
             return nil;
     }
     return self;
+}
+
+- (instancetype) init {
+    if (self = [super init]) {
+        _lexer  = [[SPKSPARQLLexer alloc] initWithString:@""];
+        _parser = [[SPKTurtleParser alloc] init];
+        _termToNTriplesDataCache    = [[NSCache alloc] init];
+        _termDataToIDCache          = [[NSCache alloc] init];
+        _IDToTermCache              = [[NSCache alloc] init];
+        [_termToNTriplesDataCache setCountLimit:128];
+        [_termDataToIDCache setCountLimit:128];
+        [_IDToTermCache setCountLimit:128];
+    }
+    return self;
+}
+
+- (NSData*) dataFromTerm: (id<GTWTerm>) t {
+    NSData* data    = [_termToNTriplesDataCache objectForKey:t];
+    if (data)
+        return data;
+    data            = [NSData gtw_dataFromTerm:t];
+    [_termToNTriplesDataCache setObject:data forKey:t];
+    return data;
+}
+
+- (NSInteger) lastQuadStoreHeaderPageID {
+    NSInteger pageID;
+    NSInteger pageCount = [self.aof pageCount];
+    NSInteger headerPageID  = -1;
+    for (pageID = pageCount-1; pageID >= 0; pageID--) {
+        //        NSLog(@"Checking page %lu for dictionary head", pageID);
+        GTWAOFPage* p   = [self.aof readPage:pageID];
+        NSData* data    = p.data;
+        NSString* cookie  = [[NSString alloc] initWithData:[data subdataWithRange:NSMakeRange(0, 4)] encoding:NSUTF8StringEncoding];
+        if ([cookie isEqual:@(QUAD_STORE_COOKIE)]) {
+            headerPageID    = pageID;
+            break;
+        } else {
+            //            NSLog(@"- cookie: %@", cookie);
+        }
+    }
+    
+    return headerPageID;
 }
 
 - (BOOL) _loadPointers {
@@ -183,20 +215,6 @@ static NSUInteger integerFromData(NSData* data) {
 //        NSLog(@"---> %@ -> %@", key, obj);
 //    }];
     return YES;
-}
-
-- (instancetype) init {
-    if (self = [super init]) {
-        _lexer  = [[SPKSPARQLLexer alloc] initWithString:@""];
-        _parser = [[SPKTurtleParser alloc] init];
-        _termToNTriplesDataCache    = [[NSCache alloc] init];
-        _termDataToIDCache          = [[NSCache alloc] init];
-        _IDToTermCache              = [[NSCache alloc] init];
-        [_termToNTriplesDataCache setCountLimit:128];
-        [_termDataToIDCache setCountLimit:128];
-        [_IDToTermCache setCountLimit:128];
-    }
-    return self;
 }
 
 - (NSInteger) previousPageID {
@@ -558,82 +576,26 @@ static NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWMutableAOFQuadStore
 
-NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDictionary* pagePointers, NSDictionary* indexPointers, BOOL verbose ) {
-    int64_t max     = ((pageSize - DATA_OFFSET) / 16);
-    if ([pagePointers count] > max) {
-        NSLog(@"Too many index/page pointers seen while creating QuadStore header page");
-        return nil;
-    }
-    
-    uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
-    int64_t prev    = (int64_t) prevPageID;
-    if (verbose) {
-        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
-    }
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t bigprev = NSSwapHostLongLongToBig(prev);
-    
-    NSMutableData* data = [NSMutableData dataWithLength:pageSize];
-    [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:QUAD_STORE_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
-    int offset  = DATA_OFFSET;
-    for (NSString* name in indexPointers) {
-        id<GTWAOFBackedObject> obj  = indexPointers[name];
-        NSInteger pageID            = [obj pageID];
-        if (verbose) {
-            NSLog(@"handling index: %@", obj);
-        }
-        
-        NSMutableData* key;
-        key = [NSMutableData dataWithBytes:"INDX" length:4];
-        [key appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
-        if ([key length] != 8) {
-            NSLog(@"Bad key size for QuadStore page key: '%@'", key);
-            return nil;
-        }
-        
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
-        offset  += 8;
-        
-        int64_t pid     = (int64_t) pageID;
-        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
-        offset  += 8;
-    }
-    for (NSString* name in pagePointers) {
-        id<GTWAOFBackedObject> obj  = pagePointers[name];
-        NSInteger pageID            = [obj pageID];
-        if (verbose) {
-            NSLog(@"handling page pointer: %@", obj);
-        }
-        
-        NSMutableData* key;
-        NSString* string    = [NSString stringWithFormat:@"%@    ", name];
-        key = [[string dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
-        
-        if ([key length] != 8) {
-            NSLog(@"Bad key size for QuadStore page key: '%@'", key);
-            return nil;
-        }
-        
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
-        offset  += 8;
-        
-        int64_t pid     = (int64_t) pageID;
-        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
-        offset  += 8;
-    }
-    if ([data length] != pageSize) {
-        NSLog(@"page has bad size for quadstore: %llu", (unsigned long long)[data length]);
-        return nil;
-    }
-    return data;
++ (NSString*) usage {
+    return @"{ \"file\": <Path to AOF file> }";
+}
+
++ (NSDictionary*) classesImplementingProtocols {
+    NSSet* set = [NSSet setWithObjects:@protocol(GTWQuadStore), @protocol(GTWMutableQuadStore), nil];
+    return @{ (id)[GTWMutableAOFQuadStore class]: set };
+}
+
++ (NSSet*) implementedProtocols {
+    return [NSSet setWithObjects:@protocol(GTWMutableQuadStore), nil];
+}
+
+- (instancetype) initWithDictionary: (NSDictionary*) dictionary {
+    return [self initWithFilename:dictionary[@"file"]];
 }
 
 - (GTWMutableAOFQuadStore*) initWithFilename: (NSString*) filename {
     if (self = [self init]) {
+        NSLog(@"****");
         self.aof    = [[GTWAOFDirectFile alloc] initWithFilename:filename flags:O_RDWR|O_SHLOCK];
         if (!self.aof)
             return nil;
@@ -1066,6 +1028,80 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
         [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
         return YES;
     }];
+}
+
+NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDictionary* pagePointers, NSDictionary* indexPointers, BOOL verbose ) {
+    int64_t max     = ((pageSize - DATA_OFFSET) / 16);
+    if ([pagePointers count] > max) {
+        NSLog(@"Too many index/page pointers seen while creating QuadStore header page");
+        return nil;
+    }
+    
+    uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
+    int64_t prev    = (int64_t) prevPageID;
+    if (verbose) {
+        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
+    }
+    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
+    int64_t bigprev = NSSwapHostLongLongToBig(prev);
+    
+    NSMutableData* data = [NSMutableData dataWithLength:pageSize];
+    [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:QUAD_STORE_COOKIE];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
+    int offset  = DATA_OFFSET;
+    for (NSString* name in indexPointers) {
+        id<GTWAOFBackedObject> obj  = indexPointers[name];
+        NSInteger pageID            = [obj pageID];
+        if (verbose) {
+            NSLog(@"handling index: %@", obj);
+        }
+        
+        NSMutableData* key;
+        key = [NSMutableData dataWithBytes:"INDX" length:4];
+        [key appendData:[name dataUsingEncoding:NSUTF8StringEncoding]];
+        if ([key length] != 8) {
+            NSLog(@"Bad key size for QuadStore page key: '%@'", key);
+            return nil;
+        }
+        
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
+        offset  += 8;
+        
+        int64_t pid     = (int64_t) pageID;
+        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
+        offset  += 8;
+    }
+    for (NSString* name in pagePointers) {
+        id<GTWAOFBackedObject> obj  = pagePointers[name];
+        NSInteger pageID            = [obj pageID];
+        if (verbose) {
+            NSLog(@"handling page pointer: %@", obj);
+        }
+        
+        NSMutableData* key;
+        NSString* string    = [NSString stringWithFormat:@"%@    ", name];
+        key = [[string dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
+        
+        if ([key length] != 8) {
+            NSLog(@"Bad key size for QuadStore page key: '%@'", key);
+            return nil;
+        }
+        
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
+        offset  += 8;
+        
+        int64_t pid     = (int64_t) pageID;
+        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
+        offset  += 8;
+    }
+    if ([data length] != pageSize) {
+        NSLog(@"page has bad size for quadstore: %llu", (unsigned long long)[data length]);
+        return nil;
+    }
+    return data;
 }
 
 @end

@@ -36,6 +36,7 @@
 @property (readonly) GTWAOFBTree* btreeID2Term;
 @property (readonly) GTWAOFBTree* btreeTerm2ID;
 
++ (NSSet*) implementedProtocols;
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 - (GTWAOFQuadStore*) initWithAOF: (id<GTWAOF>) aof;
 - (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;

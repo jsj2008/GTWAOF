@@ -71,9 +71,11 @@
     } else if (type == '_') {
         return [[GTWBlank alloc] initWithValue:parts[3]];
     } else if (type == '"') {
-        if ([parts[1] length]) {
+        NSString* parts1    = parts[1];
+        NSString* parts2    = parts[2];
+        if ([parts1 length]) {
             return [[GTWLiteral alloc] initWithValue:parts[3] language:parts[1]];
-        } else if ([parts[2] length]) {
+        } else if ([parts2 length]) {
             return [[GTWLiteral alloc] initWithValue:parts[3] datatype:parts[2]];
         } else {
             return [[GTWLiteral alloc] initWithValue:parts[3]];

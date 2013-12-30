@@ -42,5 +42,7 @@
 	<string></string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2013 Gregory Todd Williams. All rights reserved.</string>
+	<key>NSPrincipalClass</key>
+	<string>GTWAOFPlugin</string>
 </dict>
 </plist>
