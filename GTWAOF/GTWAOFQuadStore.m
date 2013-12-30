@@ -270,35 +270,42 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 - (BOOL) enumerateGraphsUsingBlock: (void (^)(id<GTWTerm> g)) block error:(NSError *__autoreleasing*)error {
-    SPKTurtleParser* p      = [[SPKTurtleParser alloc] init];
-    p.baseIRI               = [[GTWIRI alloc] initWithValue:@"http://base.example.org/"];
-    __block BOOL ok         = YES;
-    GTWAOFRawDictionary* dict   = _dict;
-    [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-        NSData* data        = obj;
+    id<GTWTerm> (^dataToGraph)(NSData*) = ^id<GTWTerm>(NSData* data) {
         NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
-        NSData* tdata       = [dict objectForKey:gkey];
-        NSString* string    = [[NSString alloc] initWithData:tdata encoding:NSUTF8StringEncoding];
-        SPKSPARQLLexer* lexer   = [[SPKSPARQLLexer alloc] initWithString:string];
-        p.lexer = lexer;
-        SPKSPARQLToken* t       = [lexer getTokenWithError:nil];
-        if (!t) {
-            ok  = NO;
+        id<GTWTerm> g       = [self _termFromIDData:gkey];
+        if (!g) {
+            NSLog(@"bad graph decoded from AOF quadstore");
+            return nil;
+        }
+        return g;
+    };
+    
+    NSMutableSet* graphs    = [NSMutableSet set];
+    [_btreeSPOG enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSData* data        = key;
+        id<GTWTerm> g       = dataToGraph(data);
+        if (g) {
+            [graphs addObject:g];
+        } else {
             *stop   = YES;
         }
-        NSMutableArray* errors  = [NSMutableArray array];
-        id<GTWTerm> term        = [p tokenAsTerm:t withErrors:errors];
-        if ([errors count]) {
-            NSLog(@"%@", errors);
-        }
-        if (!term) {
-            NSLog(@"Cannot create term from token %@", t);
-            ok  = NO;
-            *stop   = YES;
-        }
-        block(term);
     }];
-    return ok;
+    if (NO) {
+        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
+        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            NSData* data        = obj;
+            id<GTWTerm> g       = dataToGraph(data);
+            if (g) {
+                [graphs addObject:g];
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
+    for (id<GTWTerm> g in graphs) {
+        block(g);
+    }
+    return YES;
 }
 
 - (NSArray*) getQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
@@ -394,10 +401,6 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 - (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    SPKTurtleParser* parser = [[SPKTurtleParser alloc] init];
-    parser.baseIRI               = [[GTWIRI alloc] initWithValue:@"http://base.example.org/"];
-//    GTWAOFRawDictionary* dict   = _dict;
-    
     NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
     
     void (^testQuad)(id<GTWQuad>) = ^(id<GTWQuad> q) {
