@@ -21,7 +21,7 @@
     GTWAOFPage* _head;
     GTWAOFRawQuads* _quads;
     GTWAOFRawDictionary* _dict;
-    GTWAOFBTree* _btreeSPOG;
+    NSMutableDictionary* _indexes;
     GTWAOFBTree* _btreeID2Term;
     GTWAOFBTree* _btreeTerm2ID;
     NSCache* _termToRawDataCache;
@@ -52,7 +52,6 @@
     NSMutableArray* _bulkQuads;
     GTWMutableAOFRawDictionary* _mutableDict;
     GTWMutableAOFRawQuads* _mutableQuads;
-    GTWMutableAOFBTree* _mutableBtreeSPOG;
     GTWMutableAOFBTree* _mutableBtreeID2Term;
     GTWMutableAOFBTree* _mutableBtreeTerm2ID;
 }
@@ -60,7 +59,6 @@
 @property BOOL bulkLoading;
 @property (readwrite) GTWMutableAOFRawDictionary* mutableDict;
 @property (readwrite) GTWMutableAOFRawQuads* mutableQuads;
-@property (readwrite) GTWMutableAOFBTree* mutableBtreeSPOG;
 @property (readwrite) GTWMutableAOFBTree* mutableBtreeID2Term;
 @property (readwrite) GTWMutableAOFBTree* mutableBtreeTerm2ID;
 

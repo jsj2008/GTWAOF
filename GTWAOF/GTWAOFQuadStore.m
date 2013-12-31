@@ -122,6 +122,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 - (instancetype) init {
     if (self = [super init]) {
+        _indexes            = [NSMutableDictionary dictionary];
         _termToRawDataCache = [[NSCache alloc] init];
         _termDataToIDCache  = [[NSCache alloc] init];
         _IDToTermCache      = [[NSCache alloc] init];
@@ -190,7 +191,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         if ([typeName isEqualToString:@"INDX"]) {
             if ([order isEqualToString:@"SPOG"]) {
 //                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
-                _btreeSPOG  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+                _indexes[@"SPOG"]  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             } else {
                 NSLog(@"Unexpected index order: %@", order);
                 return NO;
@@ -201,7 +202,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         } else if ([typeName isEqualToString:@"ID2T"]) {
             //            NSLog(@"Found BTree ID->Term tree at page %llu", (unsigned long long)pageID);
             _btreeID2Term   = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
-            
             NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
             NSData* value           = [_btreeID2Term objectForKey:token];
             uint64_t bignext;
@@ -257,7 +257,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (NSDictionary*) indexes {
-    return @{@"SPOG": _btreeSPOG};
+    return [_indexes copy];
 }
 
 - (NSInteger) pageID {
@@ -286,7 +286,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     };
     
     NSMutableSet* graphs    = [NSMutableSet set];
-    [_btreeSPOG enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    [spog enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
         NSData* data        = key;
         id<GTWTerm> g       = dataToGraph(data);
         if (g) {
@@ -447,7 +448,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         return q;
     };
     
-    [_btreeSPOG enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
         NSData* data        = key;
         id<GTWQuad> q       = dataToQuad(data);
         if (q) {
@@ -485,7 +487,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 - (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
     NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
 //    NSLog(@"PREFIX: %@", prefix);
-    GTWAOFBTreeNode* lca    = [_btreeSPOG lcaNodeForKeysWithPrefix:prefix];
+    GTWAOFBTree* spog       = _indexes[@"SPOG"];
+    GTWAOFBTreeNode* lca    = [spog lcaNodeForKeysWithPrefix:prefix];
 //    NSLog(@"LCA: %@", lca);
     return [lca lastModified];
     
@@ -507,10 +510,11 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 //        NSLog(@"-> no previous quadstore");
     }
     
+    GTWAOFBTree* oldspog                = _indexes[@"SPOG"];
     NSMutableDictionary* dictPageMap    = [NSMutableDictionary dictionary];
     GTWMutableAOFRawQuads* quads        = [_quads rewriteWithUpdateContext:ctx];
     GTWMutableAOFRawDictionary* dict    = [_dict rewriteWithPageMap:dictPageMap updateContext:ctx];
-    GTWAOFBTree* spog                   = [_btreeSPOG rewriteWithUpdateContext:ctx];
+    GTWAOFBTree* spog                   = [oldspog rewriteWithUpdateContext:ctx];
     GTWAOFBTree* t2i                    = [_btreeTerm2ID rewriteWithUpdateContext:ctx];
     GTWAOFBTree* i2t;
     {
@@ -568,7 +572,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (NSInteger) btreeSPOGID {
-    return _btreeSPOG.pageID;
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    return spog.pageID;
 }
 
 - (NSInteger) btreeID2TermID {
@@ -626,12 +631,12 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
                 self.mutableQuads       = [GTWMutableAOFRawQuads mutableQuadsWithQuads:@[] updateContext:ctx];
                 self.mutableDict        = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} updateContext:ctx];
-                self.mutableBtreeSPOG   = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:32 valueSize:0 updateContext:ctx];
+                _indexes[@"SPOG"]       = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:32 valueSize:0 updateContext:ctx];
                 self.mutableBtreeID2Term    = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:8 valueSize:8 updateContext:ctx];
                 self.mutableBtreeTerm2ID    = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:CC_SHA1_DIGEST_LENGTH valueSize:8 updateContext:ctx];
                 assert(self.mutableBtreeTerm2ID.aof);
 //                NSLog(@"ID->Term page ID: %lld", (long long)_mutableBtreeID2Term.pageID);
-                headPageID  = [self writeNewQuadStoreHeaderPageWithPreviousPageID:-1 rawDictionary:self.mutableDict rawQuads:self.mutableQuads idToTerm:self.mutableBtreeID2Term termToID:self.mutableBtreeTerm2ID btreeIndexes:@{@"SPOG": self.mutableBtreeSPOG} updateContext:ctx];
+                headPageID  = [self writeNewQuadStoreHeaderPageWithPreviousPageID:-1 rawDictionary:self.mutableDict rawQuads:self.mutableQuads idToTerm:self.mutableBtreeID2Term termToID:self.mutableBtreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
                 return YES;
             }];
             _head   = [self.aof readPage:headPageID];
@@ -663,14 +668,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     _dict               = mutableDict;
 }
 
-- (GTWMutableAOFBTree *)mutableBtreeSPOG {
-    return _mutableBtreeSPOG;
-}
-
-- (void)setMutableBtreeSPOG:(GTWMutableAOFBTree *)mutableBtreeSPOG {
-    _mutableBtreeSPOG   = mutableBtreeSPOG;
-    _btreeSPOG              = mutableBtreeSPOG;
-}
+//- (GTWMutableAOFBTree *)mutableBtreeSPOG {
+//    return _mutableBtreeSPOG;
+//}
+//
+//- (void)setMutableBtreeSPOG:(GTWMutableAOFBTree *)mutableBtreeSPOG {
+//    _mutableBtreeSPOG   = mutableBtreeSPOG;
+//    _indexes[@"SPOG"]   = mutableBtreeSPOG;
+//}
 
 - (GTWMutableAOFBTree *)mutableBtreeTerm2ID {
     return _mutableBtreeTerm2ID;
@@ -716,7 +721,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         if ([typeName isEqualToString:@"INDX"]) {
             if ([order isEqualToString:@"SPOG"]) {
 //                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
-                self.mutableBtreeSPOG   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+                _indexes[@"SPOG"]   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             } else {
                 NSLog(@"Unexpected index order: %@", order);
                 return NO;
@@ -728,6 +733,12 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         } else if ([typeName isEqualToString:@"ID2T"]) {
             //            NSLog(@"Found BTree ID->Term tree at page %llu", (unsigned long long)pageID);
             self.mutableBtreeID2Term   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+            NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
+            NSData* value           = [_btreeID2Term objectForKey:token];
+            uint64_t bignext;
+            [value getBytes:&bignext length:8];
+            NSInteger nextID    = (NSInteger)NSSwapBigLongLongToHost(bignext);
+            _gen.nextID         = nextID;
         } else if ([typeName isEqualToString:@"DICT"]) {
 //            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
             self.mutableDict    = [[GTWMutableAOFRawDictionary alloc] initWithPageID:pageID fromAOF:self.aof];
@@ -760,9 +771,9 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     if (self = [self init]) {
         NSInteger pageID    = [self writeNewQuadStoreHeaderPageWithPreviousPageID:prevID rawDictionary:dict rawQuads:quads idToTerm:i2t termToID:t2i btreeIndexes:indexes updateContext:ctx];
         _head               = [ctx readPage:pageID];
-        self.mutableQuads       = quads;
-        self.mutableDict        = dict;
-        self.mutableBtreeSPOG       = indexes[@"SPOG"];
+        self.mutableQuads   = quads;
+        self.mutableDict    = dict;
+        _indexes[@"SPOG"]   = indexes[@"SPOG"];
         _btreeID2Term       = i2t;
         _btreeTerm2ID       = t2i;
     }
@@ -803,7 +814,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     } else {
         [self addQuads:@[q] error:error];
         [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
+            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:_indexes updateContext:ctx];
             return YES;
         }];
         return YES;
@@ -815,7 +826,11 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
  */
 - (BOOL) addQuads: (NSArray*) quads error:(NSError *__autoreleasing*)error {
 #if DEBUG
-    NSInteger count = [_btreeSPOG count];
+    NSInteger count;
+    {
+        GTWAOFBTree* spog   = _indexes[@"SPOG"];
+        count = [spog count];
+    }
 #endif
 //    __block NSUInteger nextID   = [self nextID];
     NSMutableDictionary* map    = [NSMutableDictionary dictionary];
@@ -863,7 +878,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     //    NSLog(@"creating new quads head");
     __block GTWMutableAOFRawQuads* rawquads = self.mutableQuads;
-    GTWMutableAOFBTree* btree   = self.mutableBtreeSPOG;
+    GTWMutableAOFBTree* btree   = _indexes[@"SPOG"];
     __block NSInteger insertedCount = 0;
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         for (NSData* quadData in quadsData) {
@@ -917,10 +932,13 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     }];
     
 #if DEBUG
-    NSInteger newcount  = [_btreeSPOG count];
-    if ((count+insertedCount) != newcount) {
-        NSLog(@"SPOG index count is bad after inserting %lld new quads (old count = %lld, new count == %lld)", (long long)[quads count], (long long)count, (long long)newcount);
-        assert(0);
+    {
+        GTWAOFBTree* spog   = _indexes[@"SPOG"];
+        NSInteger newcount  = [spog count];
+        if ((count+insertedCount) != newcount) {
+            NSLog(@"SPOG index count is bad after inserting %lld new quads (old count = %lld, new count == %lld)", (long long)[quads count], (long long)count, (long long)newcount);
+            assert(0);
+        }
     }
 #endif
     return YES;
@@ -933,7 +951,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     } else {
         [self removeQuads:@[q] error:error];
         [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
+            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
             return YES;
         }];
         return YES;
@@ -968,7 +986,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     }
     NSLog(@"Remove quads: %@", quadsData);
     //    NSLog(@"creating new quads head");
-    GTWMutableAOFBTree* btree   = self.mutableBtreeSPOG;
+    GTWMutableAOFBTree* btree   = _indexes[@"SPOG"];
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         for (NSData* quadData in quadsData) {
             [btree removeValueForKey:quadData updateContext:ctx];
@@ -1011,7 +1029,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
     // rewrite QuadStore header page
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:@{@"SPOG": _btreeSPOG} updateContext:ctx];
+        [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
         return YES;
     }];
 }
