@@ -22,6 +22,7 @@
 
 - (NSInteger) keySize;
 - (NSInteger) valSize;
+- (NSInteger) count;
 - (GTWAOFBTreeNode*) root;
 - (GTWAOFBTreeNode*) leafNodeForKey:(NSData*)key;
 - (GTWAOFBTreeNode*) lcaNodeForKeysWithPrefix:(NSData*)prefix;

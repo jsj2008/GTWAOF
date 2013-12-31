@@ -13,7 +13,7 @@
 #import "GTWAOFRawDictionary.h"
 #import "GTWAOFRawQuads.h"
 #import "GTWAOFBTree.h"
-#import <SPARQLKit/SPKTurtleParser.h>
+#import "GTWTermIDGenerator.h"
 
 #define QUAD_STORE_COOKIE "QDST"
 
@@ -24,17 +24,17 @@
     GTWAOFBTree* _btreeSPOG;
     GTWAOFBTree* _btreeID2Term;
     GTWAOFBTree* _btreeTerm2ID;
-    SPKSPARQLLexer* _lexer;
-    SPKTurtleParser* _parser;
-    NSCache* _termToNTriplesDataCache;
+    NSCache* _termToRawDataCache;
     NSCache* _termDataToIDCache;
     NSCache* _IDToTermCache;
+    GTWTermIDGenerator* _gen;
 }
 
 @property (readwrite) BOOL verbose;
 @property (readwrite) id<GTWAOF> aof;
 @property (readonly) GTWAOFBTree* btreeID2Term;
 @property (readonly) GTWAOFBTree* btreeTerm2ID;
+@property (readwrite) GTWTermIDGenerator* gen;
 
 + (NSSet*) implementedProtocols;
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;

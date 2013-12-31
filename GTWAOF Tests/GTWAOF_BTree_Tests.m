@@ -10,31 +10,181 @@
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
 #import "GTWAOFDirectFile.h"
+#import "GTWAOFMemory.h"
 
-@interface GTWAOF_BTree_Tests : XCTestCase
+static NSData* dataFromInteger(NSUInteger value) {
+    long long n = (long long) value;
+    long long bign  = NSSwapHostLongLongToBig(n);
+    return [NSData dataWithBytes:&bign length:8];
+}
+
+static NSUInteger integerFromData(NSData* data) {
+    long long bign;
+    [data getBytes:&bign range:NSMakeRange(0, 8)];
+    long long n = NSSwapBigLongLongToHost(bign);
+    return (NSUInteger) n;
+}
+
+@interface GTWAOF_BTree_Tests : XCTestCase {
+    id<GTWAOF> _aof;
+    GTWMutableAOFBTree* _btree;
+}
 
 @end
 
-@implementation GTWAOF_BTree_Tests {
-    GTWAOFDirectFile* _aof;
-}
+@implementation GTWAOF_BTree_Tests
 
 - (void)setUp {
     [super setUp];
     // Put setup code here. This method is called before the invocation of each test method in the class.
-    const char* filename    = "db/test.db";
-    _aof    = [[GTWAOFDirectFile alloc] initWithFilename:@(filename)];
+    _aof    = [[GTWAOFMemory alloc] init];
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        _btree  = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:8 valueSize:8 updateContext:ctx];
+        return YES;
+    }];
 }
 
 - (void)tearDown {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
-    unlink([_aof.filename UTF8String]);
     [super tearDown];
 }
 
-- (void)testExample
-{
-//    XCTFail(@"No implementation for \"%s\"", __PRETTY_FUNCTION__);
+- (void)testBTreeInsert {
+    XCTAssert(_btree, @"BTree object");
+    XCTAssert([_btree count] == 0, @"Empty BTree size");
+    [self insertDoublesRange:NSMakeRange(1, 1)];
+    XCTAssert([_btree count] == 1, @"BTree size %lld == 1", (long long)[_btree count]);
+    NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
+    NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
+    [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSInteger k = integerFromData(key);
+        NSInteger v = integerFromData(obj);
+        [keyset addIndex:k];
+        [valset addIndex:v];
+    }];
+    NSInteger firstkey  = [keyset firstIndex];
+    NSInteger lastkey   = [keyset lastIndex];
+    XCTAssert(firstkey == 1, @"First set key");
+    XCTAssert(lastkey == 1, @"Last set key");
+    
+    NSInteger firstval  = [valset firstIndex];
+    NSInteger lastval   = [valset lastIndex];
+    XCTAssert(firstval == 2, @"First set value %lld", (long long)firstval);
+    XCTAssert(lastval == 2, @"Last set value %lld", (long long)lastval);
+}
+
+- (void)testBTreeInsert2 {
+    XCTAssert(_btree, @"BTree object");
+    XCTAssert([_btree count] == 0, @"Empty BTree size");
+    const int count = 3;
+    [self insertDoublesRange:NSMakeRange(0, count)];
+    XCTAssert([_btree count] == count, @"BTree size %lld == %d", (long long)[_btree count], count);
+    NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
+    NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
+    [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSInteger k = integerFromData(key);
+        NSInteger v = integerFromData(obj);
+        [keyset addIndex:k];
+        [valset addIndex:v];
+    }];
+    NSInteger firstkey  = [keyset firstIndex];
+    NSInteger lastkey   = [keyset lastIndex];
+    XCTAssert(firstkey == 0, @"First set key");
+    XCTAssert(lastkey == count-1, @"Last set key");
+    
+    NSInteger firstval  = [valset firstIndex];
+    NSInteger lastval   = [valset lastIndex];
+    XCTAssert(firstval == 0, @"First set value %lld", (long long)firstval);
+    XCTAssert(lastval == 2*(count-1), @"Last set value %lld", (long long)lastval);
+}
+
+- (void)testBTreeInsertDuplicate {
+    XCTAssert(_btree, @"BTree object");
+    XCTAssert([_btree count] == 0, @"Empty BTree size");
+    int count   = 1;
+    [self insertDoublesRange:NSMakeRange(0, count)];
+    [self insertDoublesRange:NSMakeRange(0, count)];
+    XCTAssert([_btree count] == count, @"BTree size %lld == %d", (long long)[_btree count], count);
+    NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
+    NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
+    [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSInteger k = integerFromData(key);
+        NSInteger v = integerFromData(obj);
+        [keyset addIndex:k];
+        [valset addIndex:v];
+    }];
+    NSInteger firstkey  = [keyset firstIndex];
+    NSInteger lastkey   = [keyset lastIndex];
+    XCTAssert(firstkey == 0, @"First set key");
+    XCTAssert(lastkey == count-1, @"Last set key");
+    
+    NSInteger firstval  = [valset firstIndex];
+    NSInteger lastval   = [valset lastIndex];
+    XCTAssert(firstval == 0, @"First set value %lld", (long long)firstval);
+    XCTAssert(lastval == 2*(count-1), @"Last set value %lld", (long long)lastval);
+}
+
+- (void)testBTreeInsert511 {
+    XCTAssert(_btree, @"BTree object");
+    XCTAssert([_btree count] == 0, @"Empty BTree size");
+    int count   = 511;
+    [self insertDoublesRange:NSMakeRange(0, count)];
+    XCTAssert([_btree count] == count, @"BTree size %lld == %d", (long long)[_btree count], count);
+    NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
+    NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
+    [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSInteger k = integerFromData(key);
+        NSInteger v = integerFromData(obj);
+        [keyset addIndex:k];
+        [valset addIndex:v];
+    }];
+    NSInteger firstkey  = [keyset firstIndex];
+    NSInteger lastkey   = [keyset lastIndex];
+    XCTAssert(firstkey == 0, @"First set key");
+    XCTAssert(lastkey == count-1, @"Last set key");
+    
+    NSInteger firstval  = [valset firstIndex];
+    NSInteger lastval   = [valset lastIndex];
+    XCTAssert(firstval == 0, @"First set value %lld", (long long)firstval);
+    XCTAssert(lastval == 2*(count-1), @"Last set value %lld", (long long)lastval);
+}
+
+- (void)testBTreeInsertN {
+    XCTAssert(_btree, @"BTree object");
+    XCTAssert([_btree count] == 0, @"Empty BTree size");
+    int count   = 8000;
+//    for (count = 511; count < 2000; count++) {
+        [self insertDoublesRange:NSMakeRange(0, count)];
+        XCTAssert([_btree count] == count, @"BTree size %lld == %d", (long long)[_btree count], count);
+        NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
+        NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
+        [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            NSInteger k = integerFromData(key);
+            NSInteger v = integerFromData(obj);
+            [keyset addIndex:k];
+            [valset addIndex:v];
+        }];
+        NSInteger firstkey  = [keyset firstIndex];
+        NSInteger lastkey   = [keyset lastIndex];
+        XCTAssert(firstkey == 0, @"First set key");
+        XCTAssert(lastkey == count-1, @"Last set key");
+        
+        NSInteger firstval  = [valset firstIndex];
+        NSInteger lastval   = [valset lastIndex];
+        XCTAssert(firstval == 0, @"First set value %lld", (long long)firstval);
+        XCTAssert(lastval == 2*(count-1), @"Last set value %lld", (long long)lastval);
+//    }
+}
+
+
+
+- (void) insertDoublesRange:(NSRange)range {
+    [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+        for (NSInteger k = range.location; k < (range.location+range.length); k++) {
+            [_btree insertValue:dataFromInteger(k*2) forKey:dataFromInteger(k) updateContext:ctx];
+        }
+        return YES;
+    }];
 }
 
 @end

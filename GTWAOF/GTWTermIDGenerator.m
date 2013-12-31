@@ -467,8 +467,20 @@ static node_subtype_t node_subtype ( NSData* data ) {
 		ip[1]	= (char) 0xFF;
 	}
 	int64_t value	= NSSwapBigLongLongToHost(idvalue);
-    
-    GTWLiteral* l   = [[GTWLiteral alloc] initWithValue:[NSString stringWithFormat:@"%"PRId64"E%d", value, (int)scale] datatype:@"http://www.w3.org/2001/XMLSchema#decimal"];
+    NSMutableString* string    = [NSMutableString stringWithFormat:@"%"PRId64"", value];
+    if (scale < 0) {
+        NSInteger len = [string length];
+        NSString* l = [string substringWithRange:NSMakeRange(0, len+scale)];
+        NSString* r = [string substringFromIndex:len+scale];
+        string      = [NSMutableString stringWithFormat:@"%@.%@", l, r];
+    } else if (scale > 0) {
+        for (int i = 0; i < scale; i++) {
+            [string appendString:@"0"];
+        }
+        [string appendString:@".0"];
+    }
+//    [NSString stringWithFormat:@"%"PRId64"E%d", value, (int)scale]
+    GTWLiteral* l   = [[GTWLiteral alloc] initWithValue:string datatype:@"http://www.w3.org/2001/XMLSchema#decimal"];
 //    NSLog(@"unpacked decimal literal: %@", l);
     return l;
 }

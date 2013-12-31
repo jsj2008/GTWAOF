@@ -13,6 +13,8 @@
     NSInteger _nextID;
 }
 
+@property (readonly) NSInteger nextID;
+
 - (GTWTermIDGenerator*) initWithNextAvailableCounter:(NSInteger)nextID;
 - (NSData*) identifierForTerm:(id<GTWTerm>)term assign:(BOOL)assign;
 - (id<GTWTerm>) termForIdentifier:(NSData*)ident;
