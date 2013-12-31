@@ -470,57 +470,57 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 }
 
 - (BOOL) insertValue:(NSData*)value forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*)ctx {
-//    NSLog(@"insertValue: -------------------------------- root: %@", _root);
+    //    NSLog(@"insertValue: -------------------------------- root: %@", _root);
 #if DEBUG
     NSInteger count = [self count];
 #endif
     GTWAOFBTreeNode* leaf   = [self leafNodeForKey:key];
     NSData* object  = [leaf objectForKey:key];
     if (object) {
-//        NSLog(@"duplicate insert attempted: %@ -> %@", key, value);
+        //        NSLog(@"duplicate insert attempted: %@ -> %@", key, value);
         return NO;
     }
     
     
     if (!leaf.isFull) {
-//        NSLog(@"leaf can hold new entry: %@", leaf);
+        //        NSLog(@"leaf can hold new entry: %@", leaf);
         NSInteger leafcount = [leaf count];
         GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf addingObject:value forKey:key updateContext:ctx];
         assert((leafcount+1) == [newnode count]);
-//        NSLog(@"going to rewrite:\n\tfrom: %@\n\troot: %@", newnode, _root);
+        //        NSLog(@"going to rewrite:\n\tfrom: %@\n\troot: %@", newnode, _root);
         _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
     } else {
-//        NSLog(@"leaf is full; need to split: %@", leaf);
+        //        NSLog(@"leaf is full; need to split: %@", leaf);
         GTWAOFBTreeNode* splitnode    = leaf;
         NSArray* pair   = [GTWMutableAOFBTreeNode splitLeafNode:splitnode addingObject:value forKey:key updateContext:ctx];
-//        NSLog(@"split leaf: %@", pair);
+        //        NSLog(@"split leaf: %@", pair);
         while (![splitnode isRoot]) {
             GTWAOFBTreeNode* oldparent = splitnode.parent;
             NSArray* parentpair     = [GTWMutableAOFBTreeNode splitOrReplaceInternalNode:oldparent replacingChildID:splitnode.pageID withNewNodes:pair updateContext:ctx];
             if ([parentpair count] == 1) {
                 // the parent had room for the new pages. rewrite to root and return.
-//                NSLog(@"the parent had room for the new pages. rewrite to root and return");
+                //                NSLog(@"the parent had room for the new pages. rewrite to root and return");
                 GTWAOFBTreeNode* newnode = parentpair[0];
                 GTWAOFBTreeNode* oldnode = oldparent;
                 _root       = [self rewriteToRootFromNewNode:newnode replacingOldNode:oldnode updateContext:ctx];
                 return YES;
             } else {
-//                NSLog(@"the parent does NOT have room for the new pages. split it, too");
+                //                NSLog(@"the parent does NOT have room for the new pages. split it, too");
                 splitnode   = oldparent;
                 pair        = parentpair;
             }
         }
         // splitting the root
-//        NSLog(@"splitting the root");
+        //        NSLog(@"splitting the root");
         GTWAOFBTreeNode* lhs    = pair[0];
         GTWAOFBTreeNode* rhs    = pair[1];
         NSArray* rootKeys       = @[[lhs maxKey]];
         NSArray* rootPageIDs    = @[@(lhs.pageID), @(rhs.pageID)];
-//        NSLog(@"%@ %@", rootKeys, rootPageIDs);
+        //        NSLog(@"%@ %@", rootKeys, rootPageIDs);
         _root   = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:YES keySize:splitnode.keySize valueSize:splitnode.valSize keys:rootKeys pageIDs:rootPageIDs updateContext:ctx];
-//        NSLog(@"new root: %@", _root);
+        //        NSLog(@"new root: %@", _root);
     }
-
+    
 #if DEBUG
     NSInteger newcount = [self count];
     if ((count+1) != newcount) {
@@ -528,7 +528,22 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
         assert(0);
     }
 #endif
+    
+    return YES;
+}
 
+- (BOOL) replaceValue:(NSData*)value forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*)ctx {
+    //    NSLog(@"replaceValue: -------------------------------- root: %@", _root);
+    GTWAOFBTreeNode* leaf   = [self leafNodeForKey:key];
+    NSData* object  = [leaf objectForKey:key];
+    if (object) {
+        GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf replacingObject:value forKey:key updateContext:ctx];
+        _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
+    } else {
+        GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf addingObject:value forKey:key updateContext:ctx];
+        _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
+    }
+    
     return YES;
 }
 

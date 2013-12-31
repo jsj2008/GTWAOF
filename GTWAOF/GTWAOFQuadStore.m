@@ -36,6 +36,7 @@
 //    return (NSUInteger) n;
 //}
 
+static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 
 @implementation GTWAOFQuadStore
@@ -200,6 +201,13 @@
         } else if ([typeName isEqualToString:@"ID2T"]) {
             //            NSLog(@"Found BTree ID->Term tree at page %llu", (unsigned long long)pageID);
             _btreeID2Term   = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+            
+            NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
+            NSData* value           = [_btreeID2Term objectForKey:token];
+            uint64_t bignext;
+            [value getBytes:&bignext length:8];
+            NSInteger nextID    = (NSInteger)NSSwapBigLongLongToHost(bignext);
+            _gen.nextID         = nextID;
         } else if ([typeName isEqualToString:@"DICT"]) {
 //            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
             _dict   = [GTWAOFRawDictionary rawDictionaryWithPageID:pageID fromAOF:self.aof];
@@ -211,9 +219,6 @@
             return NO;
         }
     }
-//    [_btreeTerm2ID enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-//        NSLog(@"---> %@ -> %@", key, obj);
-//    }];
     return YES;
 }
 
@@ -853,6 +858,9 @@
         [quadsData addObject:quadData];
     }
     
+    GTWMutableAOFBTree* i2t = self.mutableBtreeID2Term;
+    GTWMutableAOFBTree* t2i = self.mutableBtreeTerm2ID;
+    
     //    NSLog(@"creating new quads head");
     __block GTWMutableAOFRawQuads* rawquads = self.mutableQuads;
     GTWMutableAOFBTree* btree   = self.mutableBtreeSPOG;
@@ -871,38 +879,43 @@
             rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
         }
 //        NSLog(@"addQuads ctx: %@", ctx.createdPages);
+
+        if ([map count]) {
+            self.mutableDict    = [self.mutableDict dictionaryByAddingDictionary:map updateContext:ctx];
+            GTWAOFRawDictionary* dict   = _dict;
+//            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+                for (NSData* termData in map) {
+                    NSData* hash    = [self hashData:termData];
+    //                NSLog(@"generated hash %@ for term %@", hash, termData);
+                    NSData* termID  = map[termData];
+                    GTWAOFPage* p   = [dict pageForKey:termData];
+                    NSInteger pageID;
+                    if (p) {
+                        pageID  = p.pageID;
+                    } else {
+                        pageID  = -1;
+                    }
+    //                NSLog(@"map: %@ -> %lld", termID, (long long)pageID);
+                    
+                    int64_t pid     = (int64_t) pageID;
+                    int64_t bigpid  = NSSwapHostLongLongToBig(pid);
+                    NSData* value   = [NSData dataWithBytes:&bigpid length:8];
+                    [i2t insertValue:value forKey:termID updateContext:ctx];
+                    [t2i insertValue:termID forKey:hash updateContext:ctx];
+    //                NSLog(@"****** %@ -> %@", hash, termID);
+                }
+//                return YES;
+//            }];
+        }
+        
+        uint64_t next_id_value  = (uint64_t)_gen.nextID;
+        uint64_t big_next       = NSSwapHostLongLongToBig(next_id_value);
+        NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
+        NSData* value           = [NSData dataWithBytes:&big_next length:8];
+        [i2t replaceValue:value forKey:token updateContext:ctx];
         return YES;
     }];
-    if ([map count]) {
-        self.mutableDict    = [self.mutableDict dictionaryByAddingDictionary:map];
-
-        GTWMutableAOFBTree* i2t = self.mutableBtreeID2Term;
-        GTWMutableAOFBTree* t2i = self.mutableBtreeTerm2ID;
-        GTWAOFRawDictionary* dict   = _dict;
-        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-            for (NSData* termData in map) {
-                NSData* hash    = [self hashData:termData];
-//                NSLog(@"generated hash %@ for term %@", hash, termData);
-                NSData* termID  = map[termData];
-                GTWAOFPage* p   = [dict pageForKey:termData];
-                NSInteger pageID;
-                if (p) {
-                    pageID  = p.pageID;
-                } else {
-                    pageID  = -1;
-                }
-//                NSLog(@"map: %@ -> %lld", termID, (long long)pageID);
-                
-                int64_t pid     = (int64_t) pageID;
-                int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-                NSData* value   = [NSData dataWithBytes:&bigpid length:8];
-                [i2t insertValue:value forKey:termID updateContext:ctx];
-                [t2i insertValue:termID forKey:hash updateContext:ctx];
-//                NSLog(@"****** %@ -> %@", hash, termID);
-            }
-            return YES;
-        }];
-    }
+    
 #if DEBUG
     NSInteger newcount  = [_btreeSPOG count];
     if ((count+insertedCount) != newcount) {

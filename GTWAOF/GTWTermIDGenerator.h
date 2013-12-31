@@ -13,7 +13,7 @@
     NSInteger _nextID;
 }
 
-@property (readonly) NSInteger nextID;
+@property (readwrite) NSInteger nextID;
 
 - (GTWTermIDGenerator*) initWithNextAvailableCounter:(NSInteger)nextID;
 - (NSData*) identifierForTerm:(id<GTWTerm>)term assign:(BOOL)assign;
@@ -37,7 +37,7 @@
  
  Local Node ID:
  Offset	Length	Description
- 0		3		Node Type. { 1: blank, 2: iri, 3: simple, 4: lang, 5: datatype }
+ 0		3		Node Type. { 0: reserved 1: blank, 2: iri, 3: simple, 4: lang, 5: datatype, 6: variable, 7: reserved }
  3		1		(EF) =0; External flag set if node ID is not defined in the local triplestore (e.g. retrieved from a remote endpoint as part of a federated query)
  4		4		Node Subtype. >0 means inlined values. { 0: (non-inlined), 1: (fixed set), 2: xsd:date, 3: xsd:dateTime, 4: xsd:decimal, 5: xsd:integer, 6: literal, 7: reserved }
  8		56		Node Value

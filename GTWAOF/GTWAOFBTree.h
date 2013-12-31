@@ -39,5 +39,6 @@
 - (GTWMutableAOFBTree*) initBTreeWithKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize pairEnumerator:(NSEnumerator*)enumerator updateContext:(GTWAOFUpdateContext*) ctx;
 - (BOOL) insertValue:(NSData*)value forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx;
 - (BOOL) removeValueForKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx;
+- (BOOL) replaceValue:(NSData*)value forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*)ctx;
 
 @end

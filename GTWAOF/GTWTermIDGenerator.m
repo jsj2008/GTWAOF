@@ -583,7 +583,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 	int l	= 0;
 	if ((l = language_code([lang UTF8String])) > 0 && [value length] <= 6) {
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_LANG subType:NODE_SUBTYPE_LITERAL value:[value UTF8String] arg1:&l arg2:NULL];
-		NSLog(@"Packed language literal: (%@) \"%@\" -> %@\n", lang, value, ident );
+//		NSLog(@"Packed language literal: (%@) \"%@\" -> %@\n", lang, value, ident );
 		return ident;
 	}
 	return nil;
@@ -593,12 +593,12 @@ static node_subtype_t node_subtype ( NSData* data ) {
     if ([value isEqualToString:@"true"] || [value isEqualToString:@"1"]) {
 		int v	= 1;
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_FIXED value:&v arg1:NULL arg2:NULL];
-        NSLog(@"Packed boolean: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed boolean: %@ -> %@\n", value, ident );
 		return ident;
 	} else if ([value isEqualToString:@"false"] || [value isEqualToString:@"0"]) {
 		int v	= 0;
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_FIXED value:&v arg1:NULL arg2:NULL];
-        NSLog(@"Packed boolean: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed boolean: %@ -> %@\n", value, ident );
 		return ident;
 	}
 	return nil;
@@ -608,7 +608,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 	uint64_t i	= (uint64_t) atoll([value UTF8String]);
 	if (i <= MAX_INTEGER_VALUE) {
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_INTEGER value:&i arg1:NULL arg2:NULL];
-        NSLog(@"Packed integer: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed integer: %@ -> %@\n", value, ident );
 		return ident;
 	}
 	return nil;
@@ -644,7 +644,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 		}
 		
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_DECIMAL value:&v arg1:&scale arg2:NULL];
-        NSLog(@"Packed decimal: %lldE%d -> %@\n", v, (char)scale, ident );
+//        NSLog(@"Packed decimal: %lldE%d -> %@\n", v, (char)scale, ident );
 		free(newvalue);
 		return ident;
 	}
@@ -654,7 +654,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 - (NSData*) pack_float:(NSString*) value {
 	if ([value lengthOfBytesUsingEncoding:NSUTF8StringEncoding] < 8) {
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_FLOAT value:[value UTF8String] arg1:NULL arg2:NULL];
-        NSLog(@"Packed xsd:float: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed xsd:float: %@ -> %@\n", value, ident );
 		return ident;
 	}
     return nil;
@@ -663,7 +663,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 - (NSData*) pack_string:(NSString*) value {
 	if ([value lengthOfBytesUsingEncoding:NSUTF8StringEncoding] < 8) {
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_DATATYPE subType:NODE_SUBTYPE_LITERAL value:[value UTF8String] arg1:NULL arg2:NULL];
-        NSLog(@"Packed xsd:string: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed xsd:string: %@ -> %@\n", value, ident );
 		return ident;
 	}
     return nil;
@@ -682,7 +682,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
 - (NSData*) pack_simple:(NSString*) value {
 	if ([value lengthOfBytesUsingEncoding:NSUTF8StringEncoding] < 8) {
         NSData* ident   = [self newInlineNodeIDOfType:NODE_TYPE_SIMPLE subType:NODE_SUBTYPE_LITERAL value:[value UTF8String] arg1:NULL arg2:NULL];
-        NSLog(@"Packed simple literal: %@ -> %@\n", value, ident );
+//        NSLog(@"Packed simple literal: %@ -> %@\n", value, ident );
 		return ident;
 	}
     return nil;

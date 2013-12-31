@@ -807,7 +807,40 @@ static inline NSUInteger integerFromData(NSData* data) {
     [vals insertObject:object atIndex:i];
     assert((keycount+1) == [keys count]);
     assert((keycount+1) == [vals count]);
-//    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);
+    //    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);
+    NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
+    if (!data) {
+        NSLog(@"*** Failed to create new leaf page data");
+        return nil;
+    }
+    GTWAOFPage* p   = [ctx createPageWithData:data];
+    GTWMutableAOFBTreeNode* n   = [[GTWMutableAOFBTreeNode alloc] initWithPage:p parent:node.parent fromAOF:ctx];
+    [ctx registerPageObject:n];
+    return n;
+}
+
++ (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node replacingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx {
+    assert(node.type == GTWAOFBTreeLeafNodeType);
+    assert([key length] == node.keySize);
+    assert([object length] == node.valSize);
+    NSMutableArray* keys    = [[node allKeys] mutableCopy];
+    NSMutableArray* vals    = [[node allObjects] mutableCopy];
+    NSInteger keycount      = [keys count];
+    NSInteger found    = -1;
+    for (NSUInteger i = 0; i < [keys count]; i++) {
+        if ([keys[i] isEqual:key]) {
+            found   = i;
+            break;
+        }
+    }
+    if (found < 0) {
+        NSLog(@"Attempt to rewrite node replacing object for key that wasn't found: %@", key);
+        return nil;
+    }
+    [keys replaceObjectAtIndex:found withObject:key];
+    [vals replaceObjectAtIndex:found withObject:object];
+    assert(keycount == [keys count]);
+    assert(keycount == [vals count]);
     NSData* data    = [self newLeafDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys objects:vals verbose:NO];
     if (!data) {
         NSLog(@"*** Failed to create new leaf page data");
