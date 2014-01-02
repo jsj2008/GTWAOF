@@ -344,16 +344,23 @@ static inline NSUInteger integerFromData(NSData* data) {
     return;
 }
 
-- (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block {
+- (void)enumerateKeysAndObjectsInRange:(NSRange) range usingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block {
     assert(self.type == GTWAOFBTreeLeafNodeType);
     NSInteger i;
-    NSUInteger count    = [self count];
     BOOL stop           = NO;
-    for (i = 0; i < count; i++) {
+    NSInteger max       = range.location + range.length;
+    for (i = range.location; i < max; i++) {
         block(_keys[i], _objects[i], &stop);
         if (stop)
             break;
     }
+    return;
+}
+
+- (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block {
+    assert(self.type == GTWAOFBTreeLeafNodeType);
+    NSUInteger count    = [self count];
+    [self enumerateKeysAndObjectsInRange:NSMakeRange(0, count) usingBlock:block];
     return;
 }
 

@@ -62,6 +62,7 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
 - (NSData*) minKey;
 - (void)enumerateKeysAndPageIDsUsingBlock:(void (^)(NSData* key, NSInteger pageID, BOOL *stop))block;
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
+- (void)enumerateKeysAndObjectsInRange:(NSRange) range usingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block;
 - (GTWAOFBTreeNode*) childForKey:(NSData*)key;
 - (GTWAOFBTreeNode*) fullestSibling;
 - (BOOL) verify;
