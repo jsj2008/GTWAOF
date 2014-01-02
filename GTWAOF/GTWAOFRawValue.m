@@ -132,36 +132,6 @@
     return (NSUInteger) length;
 }
 
-//+ (void)enumerateObjectsForPage:(NSInteger) pageID fromAOF:(id<GTWAOF>)aof usingBlock:(void (^)(NSData* key, NSRange range, NSUInteger idx, BOOL *stop))block followTail:(BOOL)follow {
-//    @autoreleasepool {
-//        while (pageID >= 0) {
-//            GTWAOFRawQuads* q  = [[GTWAOFRawQuads alloc] initWithPageID:pageID fromAOF:aof];
-//            //            NSLog(@"Quads Page: %lu", q.pageID);
-//            //            NSLog(@"Quads Page Last-Modified: %@", [q lastModified]);
-//            GTWAOFPage* p   = q.head;
-//            NSData* data    = p.data;
-//            int64_t big_prev_page_id    = -1;
-//            [data getBytes:&big_prev_page_id range:NSMakeRange(PREV_OFFSET, 8)];
-//            long long prev_page_id = NSSwapBigLongLongToHost(big_prev_page_id);
-//            //            NSLog(@"Quads Previous Page: %"PRId64, prev_page_id);
-//            
-//            NSUInteger count    = [q count];
-//            NSUInteger i;
-//            BOOL stop   = NO;
-//            for (i = 0; i < count; i++) {
-//                NSRange range   = [self rangeOfObjectAtIndex:i];
-//                block(q.head.data, range, i, &stop);
-//                if (stop)
-//                    break;
-//            }
-//            
-//            pageID  = prev_page_id;
-//            if (!follow)
-//                break;
-//        }
-//    }
-//}
-
 NSMutableData* emptyValueData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
     int64_t prev    = (int64_t) prevPageID;
