@@ -11,6 +11,7 @@
 @interface NSData (GTWCompare)
 
 - (NSComparisonResult)gtw_compare:(NSData *)aData;
+- (NSComparisonResult) gtw_trucatedCompare:(NSData*)aData;
 - (BOOL) gtw_hasPrefix:(NSData*)data;
 
 @end

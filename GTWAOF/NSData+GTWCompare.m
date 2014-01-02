@@ -36,6 +36,19 @@
     }
 }
 
+- (NSComparisonResult) gtw_trucatedCompare:(NSData*)aData {
+    NSData *truncated1, *truncated2;
+    if ([self length] > [aData length]) {
+        truncated1  = [self subdataWithRange:NSMakeRange(0, [aData length])];
+        truncated2  = aData;
+    } else {
+        truncated2  = [aData subdataWithRange:NSMakeRange(0, [self length])];
+        truncated1  = self;
+    }
+    NSComparisonResult r    = [truncated1 gtw_compare:truncated2];
+    return r;
+}
+
 - (BOOL) gtw_hasPrefix:(NSData*)aData {
     NSUInteger len  = [self length];
     NSUInteger alen = [aData length];
