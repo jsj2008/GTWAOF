@@ -125,7 +125,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         _indexes            = [NSMutableDictionary dictionary];
         _termToRawDataCache = [[NSCache alloc] init];
         _termDataToIDCache  = [[NSCache alloc] init];
-        _IDToTermCache      = [[NSMapTable alloc] init];
+        _IDToTermCache      = [NSMapTable mapTableWithKeyOptions:NSMapTableWeakMemory valueOptions:NSMapTableWeakMemory];
         _gen                = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:1];    // TODO: get the nextID from the quadstore and restore it here
         [_termToRawDataCache setCountLimit:128];
         [_termDataToIDCache setCountLimit:128];
@@ -409,20 +409,29 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 - (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
     NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
     
+    if ([s isKindOfClass:[GTWVariable class]])
+        s   = nil;
+    if ([p isKindOfClass:[GTWVariable class]])
+        p   = nil;
+    if ([o isKindOfClass:[GTWVariable class]])
+        o   = nil;
+    if ([g isKindOfClass:[GTWVariable class]])
+        g   = nil;
+    
     void (^testQuad)(id<GTWQuad>) = ^(id<GTWQuad> q) {
-        if (s && !([s isKindOfClass:[GTWVariable class]])) {
+        if (s) {
             if (![s isEqual:q.subject])
                 return;
         }
-        if (p && !([p isKindOfClass:[GTWVariable class]])) {
+        if (p) {
             if (![p isEqual:q.predicate])
                 return;
         }
-        if (o && !([o isKindOfClass:[GTWVariable class]])) {
+        if (o) {
             if (![o isEqual:q.object])
                 return;
         }
-        if (g && !([g isKindOfClass:[GTWVariable class]])) {
+        if (g) {
             if (![g isEqual:q.graph])
                 return;
         }
@@ -449,15 +458,17 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     };
     
     GTWAOFBTree* spog   = _indexes[@"SPOG"];
-    [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSData* data        = key;
-        id<GTWQuad> q       = dataToQuad(data);
-        if (q) {
-            testQuad(q);
-        } else {
-            *stop   = YES;
-        }
-    }];
+    @autoreleasepool {
+        [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            NSData* data        = key;
+            id<GTWQuad> q       = dataToQuad(data);
+            if (q) {
+                testQuad(q);
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
     if (NO) {
         // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
         [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {

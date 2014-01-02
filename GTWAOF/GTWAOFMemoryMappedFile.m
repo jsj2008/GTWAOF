@@ -86,7 +86,7 @@ static const size_t MMAP_CHUNK_SIZE = 16777216;
     if (self = [super init]) {
         self.updateQueue    = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
         _mapped             = [NSMutableDictionary dictionary];
-        _pageCache          = [[NSMapTable alloc] init];
+        _pageCache          = [NSMapTable mapTableWithKeyOptions:NSMapTableWeakMemory valueOptions:NSMapTableWeakMemory];
         _objectCache        = [[NSCache alloc] init];
         [_objectCache setCountLimit:512];
     }
