@@ -26,7 +26,7 @@ static NSUInteger integerFromData(NSData* data) {
 }
 
 @interface GTWAOF_BTree_Tests : XCTestCase {
-    id<GTWAOF> _aof;
+    id<GTWAOF,GTWMutableAOF> _aof;
     GTWMutableAOFBTree* _btree;
 }
 

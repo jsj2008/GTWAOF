@@ -40,6 +40,8 @@
 
 @interface GTWMutableAOFRawValue : GTWAOFRawValue
 
+@property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
+
 + (GTWMutableAOFRawValue*) valueWithData:(NSData*) data updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWAOFPage*) valuePageWithData:(NSData*)data updateContext:(GTWAOFUpdateContext*) ctx;
 

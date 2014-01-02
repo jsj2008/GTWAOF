@@ -28,7 +28,7 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
     NSArray* _pageIDs;
 }
 
-@property (readwrite) id<GTWAOF> aof;
+@property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
 @property (readonly) GTWAOFPage* page;
 @property (readonly) NSInteger flags;
 @property (readonly) NSInteger keySize;

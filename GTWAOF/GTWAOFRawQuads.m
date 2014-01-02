@@ -340,7 +340,7 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
     return n;
 }
 
-- (GTWMutableAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF>)aof {
+- (GTWMutableAOFRawQuads*) initFindingQuadsInAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         self.aof    = aof;
         _head   = nil;

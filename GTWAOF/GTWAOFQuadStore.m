@@ -79,7 +79,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return self;
 }
 
-- (instancetype) initWithAOF: (id<GTWAOF>) aof {
+- (instancetype) initWithAOF: (id<GTWAOF,GTWMutableAOF>) aof {
     if (self = [self init]) {
         self.aof   = aof;
 
@@ -98,7 +98,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return self;
 }
 
-- (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         self.aof   = aof;
         _head   = [self.aof readPage:pageID];
@@ -109,7 +109,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return self;
 }
 
-- (GTWAOFQuadStore*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFQuadStore*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         self.aof   = aof;
         _head   = page;
@@ -619,7 +619,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return self;
 }
 
-- (instancetype) initWithAOF: (id<GTWAOF>) aof {
+- (instancetype) initWithAOF: (id<GTWAOF,GTWMutableAOF>) aof {
     if (self = [self init]) {
         self.aof   = aof;
         // if we don't find a header page ID, we need to create new pages here

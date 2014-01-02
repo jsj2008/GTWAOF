@@ -9,7 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "GTWAOF.h"
 
-@interface GTWAOFDirectFile : NSObject<GTWAOF> {
+@interface GTWAOFDirectFile : NSObject<GTWAOF,GTWMutableAOF> {
     int _fd;
 //    NSString* _filename;
     NSCache* _pageCache;

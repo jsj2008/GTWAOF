@@ -37,7 +37,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 @implementation GTWAOFBTreeNode
 
-+ (GTWAOFBTreeNode*) nodeWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
++ (GTWAOFBTreeNode*) nodeWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     GTWAOFBTreeNode* d   = [aof cachedObjectForPage:pageID];
     if (d) {
@@ -50,7 +50,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     return [[GTWAOFBTreeNode alloc] initWithPageID:pageID parent:parent fromAOF:aof];
 }
 
-- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTreeNode*) initWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     if (self = [self init]) {
         _aof        = aof;
@@ -72,7 +72,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     return self;
 }
 
-- (GTWAOFBTreeNode*) initWithPage:(GTWAOFPage*)page parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTreeNode*) initWithPage:(GTWAOFPage*)page parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     GTWAOFBTreeNode* d   = [aof cachedObjectForPage:page.pageID];
     if (d) {
         if (![d isKindOfClass:[GTWAOFBTreeNode class]]) {
@@ -380,7 +380,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     }
     NSNumber* number    = _pageIDs[count];
     NSInteger pageID    = [number integerValue];
-    return [[class alloc] initWithPageID:pageID parent:self fromAOF:_aof];
+    return [class nodeWithPageID:pageID parent:self fromAOF:_aof];
 }
 
 - (NSString*) longDescription {

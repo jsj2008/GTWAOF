@@ -11,10 +11,10 @@
 
 @interface GTWAOFBTree : NSObject<GTWAOFBackedObject> {
     GTWAOFBTreeNode* _root;
-    id<GTWAOF> _aof;
+    id<GTWAOF,GTWMutableAOF> _aof;
 }
 
-@property (retain,readwrite) id<GTWAOF> aof;
+@property (retain,readwrite) id<GTWAOF,GTWMutableAOF> aof;
 
 - (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof;
 - (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;

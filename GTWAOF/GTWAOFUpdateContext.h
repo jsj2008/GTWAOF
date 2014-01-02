@@ -10,7 +10,7 @@
 #import "GTWAOF.h"
 #import "GTWAOFPage.h"
 
-@interface GTWAOFUpdateContext : NSObject<GTWAOF> {
+@interface GTWAOFUpdateContext : NSObject<GTWAOF,GTWMutableAOF> {
     uint64_t nextPageID;
     id<GTWAOF> _aof;
     NSMutableDictionary* _pageIndex;

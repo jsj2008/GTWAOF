@@ -57,6 +57,7 @@
 }
 
 @property BOOL bulkLoading;
+@property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
 @property (readwrite) GTWMutableAOFRawDictionary* mutableDict;
 @property (readwrite) GTWMutableAOFRawQuads* mutableQuads;
 @property (readwrite) GTWMutableAOFBTree* mutableBtreeID2Term;

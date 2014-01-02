@@ -34,7 +34,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 @implementation GTWAOFRawDictionary
 
-- (GTWAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF>)aof {
+- (GTWAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
         _head   = nil;
@@ -81,7 +81,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     _revPageDict    = [rev copy];
 }
 
-+ (GTWAOFRawDictionary*) rawDictionaryWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
++ (GTWAOFRawDictionary*) rawDictionaryWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     GTWAOFRawDictionary* d   = [aof cachedObjectForPage:pageID];
     if (d) {
         if (![d isKindOfClass:self]) {
@@ -93,7 +93,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return [[GTWAOFRawDictionary alloc] initWithPageID:pageID fromAOF:aof];
 }
 
-- (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFRawDictionary*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     GTWAOFRawDictionary* d   = [aof cachedObjectForPage:pageID];
     if (d) {
         if (![d isKindOfClass:[self class]]) {
@@ -119,7 +119,7 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
     return self;
 }
 
-- (GTWAOFRawDictionary*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFRawDictionary*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
         _head   = page;
@@ -594,7 +594,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return newDict;
 }
 
-- (GTWMutableAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF>)aof {
+- (GTWMutableAOFRawDictionary*) initFindingDictionaryInAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         self.aof    = aof;
         _head   = nil;

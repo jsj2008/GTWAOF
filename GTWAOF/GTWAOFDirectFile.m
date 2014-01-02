@@ -84,8 +84,8 @@
         self.updateQueue    = dispatch_queue_create("us.kasei.sparql.aof", DISPATCH_QUEUE_SERIAL);
         _pageCache          = [[NSCache alloc] init];
         _objectCache        = [[NSCache alloc] init];
-        [_pageCache setCountLimit:32];
-        [_objectCache setCountLimit:128];
+        [_pageCache setCountLimit:128];
+        [_objectCache setCountLimit:512];
     }
     return self;
 }

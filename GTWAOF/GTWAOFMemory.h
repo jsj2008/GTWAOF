@@ -9,7 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "GTWAOF.h"
 
-@interface GTWAOFMemory : NSObject<GTWAOF> {
+@interface GTWAOFMemory : NSObject<GTWAOF,GTWMutableAOF> {
     NSCache* _objectCache;
 }
 

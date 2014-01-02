@@ -130,10 +130,6 @@ static const size_t MMAP_CHUNK_SIZE = 16777216;
     return page;
 }
 
-- (BOOL)updateWithBlock:(BOOL(^)(GTWAOFUpdateContext* ctx))block {
-    return NO;
-}
-
 - (NSString*) description {
     NSMutableString *description = [NSMutableString stringWithFormat:@"<%@: %p; %@; %lu pages>", NSStringFromClass([self class]), self, _filename, _pageCount];
     return description;

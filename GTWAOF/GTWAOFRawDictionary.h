@@ -48,6 +48,8 @@
 
 @interface GTWMutableAOFRawDictionary : GTWAOFRawDictionary
 
+@property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
+
 + (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx;
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx;
 - (GTWMutableAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;

@@ -43,6 +43,8 @@
 
 @interface GTWMutableAOFRawQuads : GTWAOFRawQuads
 
+@property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
+
 + (GTWMutableAOFRawQuads*) mutableQuadsWithQuads:(NSArray *)quads updateContext:(GTWAOFUpdateContext*) ctx;
 - (GTWMutableAOFRawQuads*) mutableQuadsByAddingQuads:(NSArray*) quads updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWAOFPage*) quadsPageWithQuads:(NSArray*)quads previousPageID: (NSInteger) prevID updateContext:(GTWAOFUpdateContext*) ctx;

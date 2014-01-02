@@ -15,7 +15,7 @@ static const NSInteger valSize  = 8;
 
 @implementation GTWAOFBTree
 
-- (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     if (self = [self init]) {
         _aof    = aof;
@@ -42,7 +42,7 @@ static const NSInteger valSize  = 8;
     return self;
 }
 
-- (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTree*) initWithRootPageID:(NSInteger)pageID fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     if (self = [self init]) {
         _aof        = aof;
@@ -51,7 +51,7 @@ static const NSInteger valSize  = 8;
     return self;
 }
 
-- (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFBTree*) initWithRootPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     if (self = [self init]) {
         _aof    = aof;
@@ -84,7 +84,7 @@ static const NSInteger valSize  = 8;
     return _aof;
 }
 
-- (void) setAof:(id<GTWAOF>)aof {
+- (void) setAof:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     _aof    = aof;
 }
@@ -192,26 +192,36 @@ static const NSInteger valSize  = 8;
     return data;
 }
 
+- (NSRange) rangeOfKeys:(NSArray*)keys matchingPrefix:(NSData*)prefix {
+    NSComparisonResult (^cmpData)(NSData* obj1, NSData* obj2) = ^NSComparisonResult(NSData* obj1, NSData* obj2) {
+        return [obj1 gtw_trucatedCompare:obj2];
+    };
+    NSRange all = NSMakeRange(0, [keys count]);
+    NSUInteger start = [keys indexOfObject:prefix inSortedRange:all options:NSBinarySearchingFirstEqual usingComparator:cmpData];
+    if (start == NSNotFound) {
+        return NSMakeRange(NSNotFound, 0);
+    }
+    NSUInteger end   = [keys indexOfObject:prefix inSortedRange:all options:NSBinarySearchingLastEqual usingComparator:cmpData];
+    NSRange range   = NSMakeRange(start, (1+end-start));
+//    NSLog(@"Range for enumeration: { %llu, %llu }", (unsigned long long)range.location, (unsigned long long)range.length);
+    return range;
+}
+
 - (void)enumerateKeysAndObjectsMatchingPrefix:(NSData*)prefix usingBlock:(void (^)(NSData*, NSData*, BOOL*))block {
     assert(_aof);
     @autoreleasepool {
         GTWAOFBTreeNode* lca    = [self lcaNodeForKeysWithPrefix:prefix];
         if (lca) {
             if (lca.type == GTWAOFBTreeLeafNodeType) {
-                __block BOOL seenMatchingKey = NO;
-                [GTWAOFBTree enumerateKeysAndObjectsForNode:lca aof:_aof usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-                    if ([key gtw_hasPrefix:prefix]) {
-                        seenMatchingKey = YES;
-                        BOOL localStop   = NO;
-                        block(key, obj, &localStop);
-                        if (localStop)
-                            *stop   = YES;
-                    } else {
-                        if (seenMatchingKey) {
-//                            NSLog(@"stopped seeing matching keys");
-                            *stop   = YES;
-                        }
-                    }
+                NSRange range   = [self rangeOfKeys:[lca allKeys] matchingPrefix:prefix];
+                if (range.location == NSNotFound) {
+                    [self lcaNodeForKeysWithPrefix:prefix];
+                }
+                [lca enumerateKeysAndObjectsInRange:range usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+                    BOOL localStop   = NO;
+                    block(key, obj, &localStop);
+                    if (localStop)
+                        *stop   = YES;
                 }];
             } else {
                 NSArray* keys       = [lca allKeys];
@@ -314,7 +324,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 
 @implementation GTWMutableAOFBTree
 
-- (GTWMutableAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF>)aof {
+- (GTWMutableAOFBTree*) initFindingBTreeInAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     assert(aof);
     if (self = [self init]) {
         self.aof    = aof;
@@ -419,7 +429,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
                 [vals addObject:pair[1]];
             }
             GTWMutableAOFBTreeNode* node    = [[GTWMutableAOFBTreeNode alloc] initLeafWithParent:nil isRoot:root keySize:keySize valueSize:valSize keys:keys objects:vals updateContext:ctx];
-            NSLog(@"Leaf node (root=%d) %lld: %lld data pairs", root, (long long)node.pageID, (long long)[node count]);
+//            NSLog(@"Leaf node (root=%d) %lld: %lld data pairs", root, (long long)node.pageID, (long long)[node count]);
             [pages addObject:node];
         }
         
@@ -439,7 +449,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
                 }
                 [keys removeLastObject];
                 GTWMutableAOFBTreeNode* node    = [[GTWMutableAOFBTreeNode alloc] initInternalWithParent:nil isRoot:root keySize:keySize valueSize:valSize keys:keys pageIDs:vals updateContext:ctx];
-                NSLog(@"Internal node (root=%d) %lld: %lld children", root, (long long)node.pageID, (long long)[[node childrenPageIDs] count]);
+//                NSLog(@"Internal node (root=%d) %lld: %lld children", root, (long long)node.pageID, (long long)[[node childrenPageIDs] count]);
                 [pages addObject:node];
                 NSLog(@"-------");
             }

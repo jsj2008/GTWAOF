@@ -69,7 +69,7 @@
     return self;
 }
 
-- (GTWAOFRawValue*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF>)aof {
+- (GTWAOFRawValue*) initWithPage:(GTWAOFPage*)page fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         _aof    = aof;
         _head   = page;
