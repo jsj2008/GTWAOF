@@ -26,7 +26,7 @@
     GTWAOFBTree* _btreeTerm2ID;
     NSCache* _termToRawDataCache;
     NSCache* _termDataToIDCache;
-    NSCache* _IDToTermCache;
+    NSMapTable* _IDToTermCache;
     GTWTermIDGenerator* _gen;
 }
 

@@ -125,11 +125,10 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         _indexes            = [NSMutableDictionary dictionary];
         _termToRawDataCache = [[NSCache alloc] init];
         _termDataToIDCache  = [[NSCache alloc] init];
-        _IDToTermCache      = [[NSCache alloc] init];
+        _IDToTermCache      = [[NSMapTable alloc] init];
         _gen                = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:1];    // TODO: get the nextID from the quadstore and restore it here
         [_termToRawDataCache setCountLimit:128];
         [_termDataToIDCache setCountLimit:128];
-        [_IDToTermCache setCountLimit:128];
     }
     return self;
 }
@@ -370,13 +369,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 - (id<GTWTerm>) _termFromIDData:(NSData*)idData {
     id<GTWTerm> term;
 //    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] init];
-    term    = [_gen termForIdentifier:idData];
+    term    = [_IDToTermCache objectForKey:idData];
     if (term) {
         return term;
     }
     
-    term    = [_IDToTermCache objectForKey:idData];
+    term    = [_gen termForIdentifier:idData];
     if (term) {
+        [_IDToTermCache setObject:term forKey:idData];
         return term;
     }
     
