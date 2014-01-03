@@ -188,9 +188,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
         uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
         if ([typeName isEqualToString:@"INDX"]) {
-            if ([order isEqualToString:@"SPOG"]) {
-//                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
-                _indexes[@"SPOG"]  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+            if ([order rangeOfString:@"^([SPOG]{4})$" options:NSRegularExpressionSearch].location == 0) {
+                _indexes[order]  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             } else {
                 NSLog(@"Unexpected index order: %@", order);
                 return NO;
@@ -285,7 +284,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     };
     
     NSMutableSet* graphs    = [NSMutableSet set];
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];    // TODO: should enumerate with an index whose key order starts with G
     [spog enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
         NSData* data        = key;
         id<GTWTerm> g       = dataToGraph(data);
@@ -368,7 +367,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 - (id<GTWTerm>) _termFromIDData:(NSData*)idData {
     id<GTWTerm> term;
-//    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] init];
     term    = [_IDToTermCache objectForKey:idData];
     if (term) {
         return term;
@@ -407,7 +405,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
     
     if ([s isKindOfClass:[GTWVariable class]])
         s   = nil;
@@ -457,7 +454,9 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         return q;
     };
     
+    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
     GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
     @autoreleasepool {
         [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
             NSData* data        = key;
@@ -488,16 +487,10 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return [self enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:block error:error];
 }
 
-//@optional
-//- (NSEnumerator*) quadEnumeratorMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError **)error;
-//- (BOOL) addIndexType: (NSString*) type value: (NSArray*) positions synchronous: (BOOL) sync error: (NSError**) error;
-//- (NSString*) etagForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError **)error;
-//- (NSUInteger) countGraphsWithOutError:(NSError **)error;
-//- (NSUInteger) countQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError **)error;
-
 - (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
     NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
 //    NSLog(@"PREFIX: %@", prefix);
+    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
     GTWAOFBTree* spog       = _indexes[@"SPOG"];
     GTWAOFBTreeNode* lca    = [spog lcaNodeForKeysWithPrefix:prefix];
 //    NSLog(@"LCA: %@", lca);
@@ -521,13 +514,19 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 //        NSLog(@"-> no previous quadstore");
     }
     
-    GTWAOFBTree* oldspog                = _indexes[@"SPOG"];
     NSMutableDictionary* dictPageMap    = [NSMutableDictionary dictionary];
     GTWMutableAOFRawQuads* quads        = [_quads rewriteWithUpdateContext:ctx];
     GTWMutableAOFRawDictionary* dict    = [_dict rewriteWithPageMap:dictPageMap updateContext:ctx];
-    GTWAOFBTree* spog                   = [oldspog rewriteWithUpdateContext:ctx];
     GTWAOFBTree* t2i                    = [_btreeTerm2ID rewriteWithUpdateContext:ctx];
     GTWAOFBTree* i2t;
+
+    NSMutableDictionary* newindexes = [NSMutableDictionary dictionary];
+    for (NSString* keyOrder in _indexes) {
+        GTWAOFBTree* oldindex   = _indexes[keyOrder];
+        GTWAOFBTree* newindex   = [oldindex rewriteWithUpdateContext:ctx];
+        newindexes[keyOrder]    = newindex;
+    }
+    
     {
         // the id2term btree needs to be completely reconstructed becaue it has pageIDs of RawDictionary pages in the pair values
         NSMutableArray* pairs           = [NSMutableArray array];
@@ -560,7 +559,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
 //    NSLog(@"rewriting AOF QuadStore with previous QuadStore at page %lld", (long long)prevID);
 //    NSLog(@"-> %@", self.aof);
-    GTWMutableAOFQuadStore* newstore    = [[GTWMutableAOFQuadStore alloc] initWithPreviousPageID:newPrevID rawDictionary:dict rawQuads:quads idToTerm:i2t termToID:t2i btreeIndexes:@{@"SPOG": spog} updateContext:ctx];
+    GTWMutableAOFQuadStore* newstore    = [[GTWMutableAOFQuadStore alloc] initWithPreviousPageID:newPrevID rawDictionary:dict rawQuads:quads idToTerm:i2t termToID:t2i btreeIndexes:newindexes updateContext:ctx];
     [ctx registerPageObject:newstore];
     return newstore;
 }
@@ -580,11 +579,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 - (NSInteger) quadsID {
     return _quads.pageID;
-}
-
-- (NSInteger) btreeSPOGID {
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];
-    return spog.pageID;
 }
 
 - (NSInteger) btreeID2TermID {
@@ -640,11 +634,12 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             
             __block NSInteger headPageID    = -1;
             [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-                self.mutableQuads       = [GTWMutableAOFRawQuads mutableQuadsWithQuads:@[] updateContext:ctx];
-                self.mutableDict        = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} updateContext:ctx];
-                _indexes[@"SPOG"]       = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:32 valueSize:0 updateContext:ctx];
+                self.mutableQuads           = [GTWMutableAOFRawQuads mutableQuadsWithQuads:@[] updateContext:ctx];
+                self.mutableDict            = [GTWMutableAOFRawDictionary mutableDictionaryWithDictionary:@{} updateContext:ctx];
                 self.mutableBtreeID2Term    = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:8 valueSize:8 updateContext:ctx];
                 self.mutableBtreeTerm2ID    = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:CC_SHA1_DIGEST_LENGTH valueSize:8 updateContext:ctx];
+                _indexes[@"SPOG"]           = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:32 valueSize:0 updateContext:ctx];
+                _indexes[@"POGS"]           = [[GTWMutableAOFBTree alloc] initEmptyBTreeWithKeySize:32 valueSize:0 updateContext:ctx];
                 assert(self.mutableBtreeTerm2ID.aof);
 //                NSLog(@"ID->Term page ID: %lld", (long long)_mutableBtreeID2Term.pageID);
                 headPageID  = [self writeNewQuadStoreHeaderPageWithPreviousPageID:-1 rawDictionary:self.mutableDict rawQuads:self.mutableQuads idToTerm:self.mutableBtreeID2Term termToID:self.mutableBtreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
@@ -678,15 +673,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     _mutableDict    = mutableDict;
     _dict               = mutableDict;
 }
-
-//- (GTWMutableAOFBTree *)mutableBtreeSPOG {
-//    return _mutableBtreeSPOG;
-//}
-//
-//- (void)setMutableBtreeSPOG:(GTWMutableAOFBTree *)mutableBtreeSPOG {
-//    _mutableBtreeSPOG   = mutableBtreeSPOG;
-//    _indexes[@"SPOG"]   = mutableBtreeSPOG;
-//}
 
 - (GTWMutableAOFBTree *)mutableBtreeTerm2ID {
     return _mutableBtreeTerm2ID;
@@ -730,9 +716,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
         uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
         if ([typeName isEqualToString:@"INDX"]) {
-            if ([order isEqualToString:@"SPOG"]) {
-//                NSLog(@"Found BTree index at page %llu", (unsigned long long)pageID);
-                _indexes[@"SPOG"]   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
+            if ([order rangeOfString:@"^([SPOG]{4})$" options:NSRegularExpressionSearch].location == 0) {
+                _indexes[order]  = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             } else {
                 NSLog(@"Unexpected index order: %@", order);
                 return NO;
@@ -785,6 +770,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         self.mutableQuads   = quads;
         self.mutableDict    = dict;
         _indexes[@"SPOG"]   = indexes[@"SPOG"];
+        _indexes[@"POGS"]   = indexes[@"POGS"];
         _btreeID2Term       = i2t;
         _btreeTerm2ID       = t2i;
     }
@@ -832,6 +818,60 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     }
 }
 
+- (NSDictionary*) keyOrderedDataDictionariesForQuads:(NSArray*)quads settingNewTermIDs:(NSMutableDictionary*)map {
+    NSDictionary* termIndexes   = @{@"S":@(0), @"P":@(1), @"O":@(2), @"G":@(3)};
+    NSMutableDictionary* keyOrderQuadDataDictionaries = [NSMutableDictionary dictionary];
+    for (NSString* keyOrder in _indexes) {
+        keyOrderQuadDataDictionaries[keyOrder] = [NSMutableDictionary dictionary];
+        NSMutableArray* keyOrderArray   = [NSMutableArray array];
+//        NSLog(@"KEY ORDER: %@", keyOrder);
+        for (NSInteger i = 0; i < [keyOrder length]; i++) {
+            [keyOrderArray addObject:[keyOrder substringWithRange:NSMakeRange(i, 1)]];
+        }
+        for (id<GTWQuad> q in quads) {
+            NSMutableDictionary* quadDataDict  = keyOrderQuadDataDictionaries[keyOrder];
+            NSMutableData* quadDataKey = [NSMutableData data];
+            NSMutableData* quadDataValue = [NSMutableData data];
+            NSArray* terms  = [q allValues];
+            for (NSString* keyChar in keyOrderArray) {
+                id<GTWTerm> t   = terms[[termIndexes[keyChar] integerValue]];
+//                NSLog(@"%@ -> %@", keyChar, t);
+                BOOL verbose    = NO;
+                NSData* ident      = [_gen identifierForTerm:t assign:NO];
+                if (!ident) {
+                    NSData* termData    = [self dataFromTerm:t];
+                    if (map) {
+                        ident       = map[termData];
+                    }
+                    if (!ident) {
+                        ident           = [self _IDDataFromTermData:termData];
+                        if (verbose && ident)
+                            NSLog(@"term already has ID: %@", ident);
+                    }
+                    if (map && !ident) {
+                        if (verbose)
+                            NSLog(@"term does not yet have an ID: %@", t);
+                        ident      = [_gen identifierForTerm:t assign:YES];
+                        if (!ident || [ident length] != 8) {
+                            if (verbose)
+                                NSLog(@"Unexpected term ID: %@", ident);
+                            break;
+                        }
+                        //                    ident           = dataFromInteger(nextID++);
+                        if (verbose)
+                            NSLog(@"assigned ID %@", ident);
+                        map[termData]   = ident;
+                    }
+                }
+                [quadDataKey appendData:ident];
+            }
+            [quadDataDict setObject:quadDataValue forKey:quadDataKey];
+        }
+    }
+    NSLog(@"key order data: %@", keyOrderQuadDataDictionaries);
+    return keyOrderQuadDataDictionaries;
+}
+
 /**
  Caller is responsible for calling the writeNewQuadStoreHeaderPage... method to write a new header page.
  */
@@ -845,64 +885,41 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 #endif
 //    __block NSUInteger nextID   = [self nextID];
     NSMutableDictionary* map    = [NSMutableDictionary dictionary];
-    NSMutableArray* quadsData   = [NSMutableArray array];
-//    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:nextID];
-    for (id<GTWQuad> q in quads) {
-        NSMutableData* quadData = [NSMutableData data];
-        for (id<GTWTerm> t in [q allValues]) {
-            BOOL verbose    = NO;
-//            if ([t.value rangeOfString:@"(Boris_Groys|Heinrich_Gustav_Magnus)" options:NSRegularExpressionSearch].location != NSNotFound) {
-//                verbose = YES;
-//                NSLog(@"************************\nTerm: %@", t);
-//            }
-            NSData* ident      = [_gen identifierForTerm:t assign:NO];
-            if (!ident) {
-                NSData* termData    = [self dataFromTerm:t];
-                ident       = map[termData];
-                if (!ident) {
-                    ident           = [self _IDDataFromTermData:termData];
-                    if (verbose && ident)
-                        NSLog(@"term already has ID: %@", ident);
-                }
-                if (!ident) {
-                    if (verbose)
-                        NSLog(@"term does not yet have an ID: %@", t);
-                    ident      = [_gen identifierForTerm:t assign:YES];
-                    if (!ident || [ident length] != 8) {
-                        if (verbose)
-                            NSLog(@"Unexpected term ID: %@", ident);
-                        break;
-                    }
-//                    ident           = dataFromInteger(nextID++);
-                    if (verbose)
-                        NSLog(@"assigned ID %@", ident);
-                    map[termData]   = ident;
-                }
-            }
-            [quadData appendData:ident];
-        }
-        [quadsData addObject:quadData];
-    }
+    NSDictionary* keyOrderQuadDataDicts = [self keyOrderedDataDictionariesForQuads:quads settingNewTermIDs:map];
     
     GTWMutableAOFBTree* i2t = self.mutableBtreeID2Term;
     GTWMutableAOFBTree* t2i = self.mutableBtreeTerm2ID;
     
     //    NSLog(@"creating new quads head");
     __block GTWMutableAOFRawQuads* rawquads = self.mutableQuads;
-    GTWMutableAOFBTree* btree   = _indexes[@"SPOG"];
+//    GTWMutableAOFBTree* spog    = _indexes[@"SPOG"];
+    // TODO: insert into other indexes (re-ordering the data to match the index key order)
+//    NSDictionary* indexes       = _indexes;
     __block NSInteger insertedCount = 0;
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        for (NSData* quadData in quadsData) {
-            BOOL ok = [btree insertValue:[NSData data] forKey:quadData updateContext:ctx];
-            if (ok) {
-                insertedCount++;
-            } else {
-                NSLog(@"******** Duplicate insert? %@", quadData);
+        for (NSString* keyOrder in keyOrderQuadDataDicts) {
+            GTWMutableAOFBTree* index    = _indexes[keyOrder];
+            for (NSData* key in keyOrderQuadDataDicts[keyOrder]) {
+                NSData* value   = keyOrderQuadDataDicts[keyOrder][key];
+                BOOL ok = [index insertValue:value forKey:key updateContext:ctx];
+                if (!ok) {
+                    NSLog(@"******** Duplicate insert? %@", key);
+                }
+                if ([keyOrder isEqualToString:@"SPOG"]) {
+                    if (ok) {
+                        insertedCount++;
+                    }
+                }
             }
         }
+        
         if (NO) {
+            NSMutableArray* quadKeys   = [NSMutableArray array];
+            for (NSData* key in keyOrderQuadDataDicts[@"SPOG"]) {
+                [quadKeys addObject:key];
+            }
             // don't duplicate the quad in the rawquads and the btree; at some point, we can add here until we overflow and then bulk load the rawquads into the btree
-            rawquads   = [rawquads mutableQuadsByAddingQuads:quadsData updateContext:ctx];
+            rawquads   = [rawquads mutableQuadsByAddingQuads:quadKeys updateContext:ctx];
         }
 //        NSLog(@"addQuads ctx: %@", ctx.createdPages);
 
@@ -947,7 +964,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         GTWAOFBTree* spog   = _indexes[@"SPOG"];
         NSInteger newcount  = [spog count];
         if ((count+insertedCount) != newcount) {
-            NSLog(@"SPOG index count is bad after inserting %lld new quads (old count = %lld, new count == %lld)", (long long)[quads count], (long long)count, (long long)newcount);
+            NSLog(@"SPOG index count is bad after inserting %lld new quads (old count = %lld, new count == %lld)", (long long)insertedCount, (long long)count, (long long)newcount);
             assert(0);
         }
     }
@@ -972,35 +989,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 /**
  Caller is responsible for calling the writeNewQuadStoreHeaderPage... method to write a new header page.
  */
-- (BOOL) removeQuads: (NSArray*) quads error:(NSError *__autoreleasing*)error {
-//    __block NSUInteger nextID   = [self nextID];
-    NSMutableArray* quadsData   = [NSMutableArray array];
-//    GTWTermIDGenerator* gen     = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:nextID];
-    for (id<GTWQuad> q in quads) {
-        NSMutableData* quadData = [NSMutableData data];
-        BOOL ok = YES;
-        for (id<GTWTerm> t in [q allValues]) {
-            NSData* ident      = [_gen identifierForTerm:t assign:NO];
-            if (!ident) {
-                ident               = [self _IDDataFromTermData:[self dataFromTerm:t]];
-                if (!ident) {
-                    NSLog(@"no identifier for term %@", t);
-                    ok  = NO;
-                    break;
-                }
-            }
-            [quadData appendData:ident];
-        }
-        if (ok) {
-            [quadsData addObject:quadData];
-        }
-    }
-    NSLog(@"Remove quads: %@", quadsData);
+- (BOOL) removeQuads:(NSArray*)quads error:(NSError *__autoreleasing*)error {
+    NSDictionary* keyOrderQuadDataDictionaries = [self keyOrderedDataDictionariesForQuads:quads settingNewTermIDs:nil];
+    NSLog(@"Remove quads: %@", keyOrderQuadDataDictionaries[@"SPOG"]);
     //    NSLog(@"creating new quads head");
     GTWMutableAOFBTree* btree   = _indexes[@"SPOG"];
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        for (NSData* quadData in quadsData) {
-            [btree removeValueForKey:quadData updateContext:ctx];
+        for (NSData* key in keyOrderQuadDataDictionaries[@"SPOG"]) {
+            [btree removeValueForKey:key updateContext:ctx];
         }
         //        NSLog(@"addQuads ctx: %@", ctx.createdPages);
         return YES;

@@ -282,7 +282,7 @@ int main(int argc, const char * argv[]) {
     srand([[NSDate date] timeIntervalSince1970]);
     const char* op  = argv[argi++];
     NSString* ops   = [NSString stringWithFormat:@"%s", op];
-    if ([ops rangeOfString:@"export" options:NSRegularExpressionSearch].location != NSNotFound) {
+    if ([ops rangeOfString:@"(pages|export|btree|list|dict|term|value|compact|btverify)" options:NSRegularExpressionSearch].location == 0) {
         // read-only AOF branch
         id<GTWAOF> aof   = [[GTWAOFMemoryMappedFile alloc] initWithFilename:@(filename)];
         if (!strcmp(op, "export")) {
