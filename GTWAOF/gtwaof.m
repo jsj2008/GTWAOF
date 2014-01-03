@@ -263,6 +263,7 @@ int main(int argc, const char * argv[]) {
     int argi            = 1;
     
     BOOL verbose        = NO;
+    NSInteger back      = 0;
     NSInteger pageID    = -1;
     const char* filename    = "db/test.db";
     while (argc > argi && argv[argi][0] == '-') {
@@ -272,6 +273,9 @@ int main(int argc, const char * argv[]) {
         } else if (!strcmp(argv[argi], "-p")) {
             argi++;
             pageID    = atoll(argv[argi++]);
+        } else if (!strcmp(argv[argi], "-b")) {
+            argi++;
+            back++;
         } else if (!strcmp(argv[argi], "-v")) {
             argi++;
             verbose = YES;
@@ -288,6 +292,19 @@ int main(int argc, const char * argv[]) {
         if (!strcmp(op, "export")) {
             //        NSLog(@"Exporting from QuadStore #%lld", (long long)pageID);
             GTWAOFQuadStore* store  = (pageID < 0) ? [[GTWAOFQuadStore alloc] initWithAOF:aof] : [[GTWAOFQuadStore alloc] initWithPageID:pageID fromAOF:aof];
+//            NSLog(@"Current version: %lld", (long long)store.pageID);
+            if (back) {
+                while (back > 0) {
+//                    NSLog(@"Going back to a previous version");
+                    back--;
+                    store   = [store previousState];
+                    if (!store) {
+                        NSLog(@"Attempt to export from state of QuadStore prior to its creation");
+                        return 1;
+                    }
+//                    NSLog(@"Current version: %lld", (long long)store.pageID);
+                }
+            }
             if (!store) {
                 NSLog(@"Failed to create quad store object");
                 return 1;

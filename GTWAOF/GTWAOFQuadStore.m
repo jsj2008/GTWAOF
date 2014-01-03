@@ -98,6 +98,18 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return self;
 }
 
++ (GTWAOFQuadStore*) quadStoreWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof {
+    GTWAOFQuadStore* q   = [aof cachedObjectForPage:pageID];
+    if (q) {
+        if (![q isKindOfClass:self]) {
+            NSLog(@"Cached object is of unexpected type for page %lld", (long long)pageID);
+            return nil;
+        }
+        return q;
+    }
+    return [[GTWAOFQuadStore alloc] initWithPageID:pageID fromAOF:aof];
+}
+
 - (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
     if (self = [self init]) {
         self.aof   = aof;
@@ -229,9 +241,9 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return (NSInteger) prev;
 }
 
-- (GTWAOFRawQuads*) previousPage {
+- (GTWAOFQuadStore*) previousState {
     if (self.previousPageID >= 0) {
-        return [GTWAOFRawQuads rawQuadsWithPageID:self.previousPageID fromAOF:_aof];
+        return [GTWAOFQuadStore quadStoreWithPageID:self.previousPageID fromAOF:self.aof];
     } else {
         return nil;
     }
@@ -868,14 +880,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             [quadDataDict setObject:quadDataValue forKey:quadDataKey];
         }
     }
-    NSLog(@"key order data: %@", keyOrderQuadDataDictionaries);
+//    NSLog(@"key order data: %@", keyOrderQuadDataDictionaries);
     return keyOrderQuadDataDictionaries;
 }
 
 /**
  Caller is responsible for calling the writeNewQuadStoreHeaderPage... method to write a new header page.
  */
-- (BOOL) addQuads: (NSArray*) quads error:(NSError *__autoreleasing*)error {
+- (BOOL) addQuads:(NSArray*)quads error:(NSError *__autoreleasing*)error {
 #if DEBUG
     NSInteger count;
     {
@@ -1015,15 +1027,18 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     }
 }
 
-- (void) flushBulkQuads {
+- (NSInteger) flushBulkQuads {
     NSError* error;
-    if ([_bulkQuads count]) {
+    NSInteger count  = [_bulkQuads count];
+    if (count) {
         [self addQuads:_bulkQuads error:&error];
         if (error) {
             NSLog(@"%@", error);
         }
         [_bulkQuads removeAllObjects];
     }
+    return count;
+    
 }
 
 - (void) endBulkLoad {
@@ -1031,14 +1046,16 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         NSLog(@"endBulkLoad called on store that is not bulk loading.");
         return;
     }
-    [self flushBulkQuads];
+    NSInteger flushed   = [self flushBulkQuads];
     _bulkLoading    = NO;
-
-    // rewrite QuadStore header page
-    [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-        [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
-        return YES;
-    }];
+    
+    if (flushed) {
+        // rewrite QuadStore header page
+        [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
+            [self writeNewQuadStoreHeaderPageWithPreviousPageID:self.pageID rawDictionary:_dict rawQuads:_quads idToTerm:_btreeID2Term termToID:_btreeTerm2ID btreeIndexes:[self indexes] updateContext:ctx];
+            return YES;
+        }];
+    }
 }
 
 NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDictionary* pagePointers, NSDictionary* indexPointers, BOOL verbose ) {

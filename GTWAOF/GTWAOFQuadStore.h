@@ -37,6 +37,7 @@
 @property (readwrite) GTWTermIDGenerator* gen;
 
 + (NSSet*) implementedProtocols;
++ (GTWAOFQuadStore*) quadStoreWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
 - (GTWAOFQuadStore*) initWithFilename: (NSString*) filename;
 - (GTWAOFQuadStore*) initWithAOF: (id<GTWAOF>) aof;
 - (GTWAOFQuadStore*) initWithPageID:(NSInteger)pageID fromAOF:(id<GTWAOF>)aof;
@@ -44,6 +45,7 @@
 - (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx;
 - (NSDictionary*) indexes;
 - (NSData*) hashData:(NSData*)data;
+- (GTWAOFQuadStore*) previousState;
 
 @end
 
