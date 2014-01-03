@@ -115,13 +115,13 @@ static const size_t MMAP_CHUNK_SIZE = 16777216;
         char* ptr   = [value pointerValue];
         data        = [NSData dataWithBytesNoCopy:&(ptr[chunk_offset]) length:_pageSize freeWhenDone:NO];
     } else {
-        NSLog(@"mmapping page %lld from fd %d for chunk %d with length %lld", (long long)pageID, _fd, (int)chunk, (long long)MMAP_CHUNK_SIZE);
+//        NSLog(@"mmapping page %lld from fd %d for chunk %d with length %lld", (long long)pageID, _fd, (int)chunk, (long long)MMAP_CHUNK_SIZE);
         char* ptr   = mmap(NULL, MMAP_CHUNK_SIZE, PROT_READ, MAP_FILE|MAP_SHARED, _fd, offset);
         if (ptr == MAP_FAILED) {
             perror("mmap");
             return nil;
         }
-        NSLog(@"mmapped page %lld at %p", (long long)pageID, ptr);
+//        NSLog(@"mmapped page %lld at %p", (long long)pageID, ptr);
         _mapped[@(chunk)]  = [NSValue valueWithPointer:ptr];
         data    = [NSData dataWithBytesNoCopy:&(ptr[chunk_offset]) length:_pageSize freeWhenDone:NO];
     }
@@ -148,7 +148,7 @@ static const size_t MMAP_CHUNK_SIZE = 16777216;
     [_mapped enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         NSValue* value  = obj;
         void* ptr       = [value pointerValue];
-        NSLog(@"unmapping %p", ptr);
+//        NSLog(@"unmapping %p", ptr);
         munmap(ptr, MMAP_CHUNK_SIZE);
     }];
     return;
