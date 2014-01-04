@@ -138,7 +138,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         _termToRawDataCache = [[NSCache alloc] init];
         _termDataToIDCache  = [[NSCache alloc] init];
         _IDToTermCache      = [NSMapTable mapTableWithKeyOptions:NSMapTableWeakMemory valueOptions:NSMapTableWeakMemory];
-        _gen                = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:1];    // TODO: get the nextID from the quadstore and restore it here
+        _gen                = [[GTWTermIDGenerator alloc] initWithNextAvailableCounter:1];
         [_termToRawDataCache setCountLimit:128];
         [_termDataToIDCache setCountLimit:128];
     }
@@ -274,83 +274,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return _head.pageID;
 }
 
-- (NSArray*) getGraphsWithError:(NSError *__autoreleasing*)error {
-    NSMutableSet* graphs    = [NSMutableSet set];
-    BOOL ok                 = [self enumerateGraphsUsingBlock:^(id<GTWTerm> g) {
-        [graphs addObject:g];
-    } error:error];
-    if (!ok)
-        return nil;
-    return [graphs allObjects];
-}
-
-- (BOOL) enumerateGraphsUsingBlock: (void (^)(id<GTWTerm> g)) block error:(NSError *__autoreleasing*)error {
-    id<GTWTerm> (^dataToGraph)(NSData*) = ^id<GTWTerm>(NSData* data) {
-        NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
-        id<GTWTerm> g       = [self _termFromIDData:gkey];
-        if (!g) {
-            NSLog(@"bad graph decoded from AOF quadstore");
-            return nil;
-        }
-        return g;
-    };
-    
-    NSMutableSet* graphs    = [NSMutableSet set];
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];    // TODO: should enumerate with an index whose key order starts with G
-    [spog enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSData* data        = key;
-        id<GTWTerm> g       = dataToGraph(data);
-        if (g) {
-            [graphs addObject:g];
-        } else {
-            *stop   = YES;
-        }
-    }];
-    if (NO) {
-        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
-        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-            NSData* data        = obj;
-            id<GTWTerm> g       = dataToGraph(data);
-            if (g) {
-                [graphs addObject:g];
-            } else {
-                *stop   = YES;
-            }
-        }];
-    }
-    for (id<GTWTerm> g in graphs) {
-        block(g);
-    }
-    return YES;
-}
-
-- (NSArray*) getQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
-    NSMutableArray* quads   = [NSMutableArray array];
-    BOOL ok = [self enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
-        [quads addObject:q];
-    } error:error];
-    if (!ok)
-        return nil;
-    return quads;
-}
-
-- (NSData*) spogPrefixMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
-    NSMutableData* prefix   = [NSMutableData data];
-    if (s && !([s isKindOfClass:[GTWVariable class]])) {
-        [prefix appendData: [self _IDDataFromTerm:s]];
-        if (p && !([p isKindOfClass:[GTWVariable class]])) {
-            [prefix appendData: [self _IDDataFromTerm:p]];
-            if (o && !([o isKindOfClass:[GTWVariable class]])) {
-                [prefix appendData: [self _IDDataFromTerm:o]];
-                if (g && !([g isKindOfClass:[GTWVariable class]])) {
-                    [prefix appendData: [self _IDDataFromTerm:g]];
-                }
-            }
-        }
-    }
-    return [prefix copy];
-}
-
 - (NSData*) _IDDataFromTermData:(NSData*)termData {
     NSData* ident   = [_termDataToIDCache objectForKey:termData];
     if (ident)
@@ -414,102 +337,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     [_IDToTermCache setObject:term forKey:idData];
     return term;
-}
-
-- (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    
-    if ([s isKindOfClass:[GTWVariable class]])
-        s   = nil;
-    if ([p isKindOfClass:[GTWVariable class]])
-        p   = nil;
-    if ([o isKindOfClass:[GTWVariable class]])
-        o   = nil;
-    if ([g isKindOfClass:[GTWVariable class]])
-        g   = nil;
-    
-    void (^testQuad)(id<GTWQuad>) = ^(id<GTWQuad> q) {
-        if (s) {
-            if (![s isEqual:q.subject])
-                return;
-        }
-        if (p) {
-            if (![p isEqual:q.predicate])
-                return;
-        }
-        if (o) {
-            if (![o isEqual:q.object])
-                return;
-        }
-        if (g) {
-            if (![g isEqual:q.graph])
-                return;
-        }
-        //        NSLog(@"enumerating matching quad: %@", q);
-        block(q);
-    };
-    
-    id<GTWQuad> (^dataToQuad)(NSData*) = ^id<GTWQuad>(NSData* data) {
-        NSData* skey        = [data subdataWithRange:NSMakeRange(0, 8)];
-        NSData* pkey        = [data subdataWithRange:NSMakeRange(8, 8)];
-        NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
-        NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
-        
-        id<GTWTerm> s       = [self _termFromIDData:skey];
-        id<GTWTerm> p       = [self _termFromIDData:pkey];
-        id<GTWTerm> o       = [self _termFromIDData:okey];
-        id<GTWTerm> g       = [self _termFromIDData:gkey];
-        if (!s || !p || !o || !g) {
-            NSLog(@"bad quad decoded from AOF quadstore");
-            return nil;
-        }
-        GTWQuad* q          = [[GTWQuad alloc] initWithSubject:s predicate:p object:o graph:g];
-        return q;
-    };
-    
-    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];
-    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
-    @autoreleasepool {
-        [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-            NSData* data        = key;
-            id<GTWQuad> q       = dataToQuad(data);
-            if (q) {
-                testQuad(q);
-            } else {
-                *stop   = YES;
-            }
-        }];
-    }
-    if (NO) {
-        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
-        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-            NSData* data        = obj;
-            id<GTWQuad> q       = dataToQuad(data);
-            if (q) {
-                testQuad(q);
-            } else {
-                *stop   = YES;
-            }
-        }];
-    }
-    return YES;
-}
-
-- (BOOL) enumerateQuadsWithBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    return [self enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:block error:error];
-}
-
-- (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
-    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
-//    NSLog(@"PREFIX: %@", prefix);
-    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
-    GTWAOFBTree* spog       = _indexes[@"SPOG"];
-    GTWAOFBTreeNode* lca    = [spog lcaNodeForKeysWithPrefix:prefix];
-//    NSLog(@"LCA: %@", lca);
-    return [lca lastModified];
-    
-    // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot
-//    return [_quads lastModified];
 }
 
 - (GTWAOFQuadStore*) rewriteWithUpdateContext:(GTWAOFUpdateContext*) ctx {
@@ -600,6 +427,184 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 - (NSInteger) btreeTerm2IDID {
     return _btreeTerm2ID.pageID;
 }
+
+- (NSData*) spogPrefixMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
+    // TODO: generalize this to produce prefixes for arbitrary key orders
+    NSMutableData* prefix   = [NSMutableData data];
+    if (s && !([s isKindOfClass:[GTWVariable class]])) {
+        [prefix appendData: [self _IDDataFromTerm:s]];
+        if (p && !([p isKindOfClass:[GTWVariable class]])) {
+            [prefix appendData: [self _IDDataFromTerm:p]];
+            if (o && !([o isKindOfClass:[GTWVariable class]])) {
+                [prefix appendData: [self _IDDataFromTerm:o]];
+                if (g && !([g isKindOfClass:[GTWVariable class]])) {
+                    [prefix appendData: [self _IDDataFromTerm:g]];
+                }
+            }
+        }
+    }
+    return [prefix copy];
+}
+
+#pragma mark - Quad Store Methods
+
+- (NSArray*) getGraphsWithError:(NSError *__autoreleasing*)error {
+    NSMutableSet* graphs    = [NSMutableSet set];
+    BOOL ok                 = [self enumerateGraphsUsingBlock:^(id<GTWTerm> g) {
+        [graphs addObject:g];
+    } error:error];
+    if (!ok)
+        return nil;
+    return [graphs allObjects];
+}
+
+- (BOOL) enumerateGraphsUsingBlock: (void (^)(id<GTWTerm> g)) block error:(NSError *__autoreleasing*)error {
+    id<GTWTerm> (^dataToGraph)(NSData*) = ^id<GTWTerm>(NSData* data) {
+        NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
+        id<GTWTerm> g       = [self _termFromIDData:gkey];
+        if (!g) {
+            NSLog(@"bad graph decoded from AOF quadstore");
+            return nil;
+        }
+        return g;
+    };
+    
+    NSMutableSet* graphs    = [NSMutableSet set];
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];    // TODO: should enumerate with an index whose key order starts with G
+    [spog enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        NSData* data        = key;
+        id<GTWTerm> g       = dataToGraph(data);
+        if (g) {
+            [graphs addObject:g];
+        } else {
+            *stop   = YES;
+        }
+    }];
+    if (NO) {
+        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
+        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            NSData* data        = obj;
+            id<GTWTerm> g       = dataToGraph(data);
+            if (g) {
+                [graphs addObject:g];
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
+    for (id<GTWTerm> g in graphs) {
+        block(g);
+    }
+    return YES;
+}
+
+- (NSArray*) getQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
+    NSMutableArray* quads   = [NSMutableArray array];
+    BOOL ok = [self enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
+        [quads addObject:q];
+    } error:error];
+    if (!ok)
+        return nil;
+    return quads;
+}
+
+- (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
+    
+    if ([s isKindOfClass:[GTWVariable class]])
+        s   = nil;
+    if ([p isKindOfClass:[GTWVariable class]])
+        p   = nil;
+    if ([o isKindOfClass:[GTWVariable class]])
+        o   = nil;
+    if ([g isKindOfClass:[GTWVariable class]])
+        g   = nil;
+    
+    void (^testQuad)(id<GTWQuad>) = ^(id<GTWQuad> q) {
+        if (s) {
+            if (![s isEqual:q.subject])
+                return;
+        }
+        if (p) {
+            if (![p isEqual:q.predicate])
+                return;
+        }
+        if (o) {
+            if (![o isEqual:q.object])
+                return;
+        }
+        if (g) {
+            if (![g isEqual:q.graph])
+                return;
+        }
+        //        NSLog(@"enumerating matching quad: %@", q);
+        block(q);
+    };
+    
+    id<GTWQuad> (^dataToQuad)(NSData*) = ^id<GTWQuad>(NSData* data) {
+        NSData* skey        = [data subdataWithRange:NSMakeRange(0, 8)];
+        NSData* pkey        = [data subdataWithRange:NSMakeRange(8, 8)];
+        NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
+        NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
+        
+        id<GTWTerm> s       = [self _termFromIDData:skey];
+        id<GTWTerm> p       = [self _termFromIDData:pkey];
+        id<GTWTerm> o       = [self _termFromIDData:okey];
+        id<GTWTerm> g       = [self _termFromIDData:gkey];
+        if (!s || !p || !o || !g) {
+            NSLog(@"bad quad decoded from AOF quadstore");
+            return nil;
+        }
+        GTWQuad* q          = [[GTWQuad alloc] initWithSubject:s predicate:p object:o graph:g];
+        return q;
+    };
+    
+    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];
+    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
+    @autoreleasepool {
+        [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+            NSData* data        = key;
+            id<GTWQuad> q       = dataToQuad(data);
+            if (q) {
+                testQuad(q);
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
+    if (NO) {
+        // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
+        [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+            NSData* data        = obj;
+            id<GTWQuad> q       = dataToQuad(data);
+            if (q) {
+                testQuad(q);
+            } else {
+                *stop   = YES;
+            }
+        }];
+    }
+    return YES;
+}
+
+- (BOOL) enumerateQuadsWithBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
+    return [self enumerateQuadsMatchingSubject:nil predicate:nil object:nil graph:nil usingBlock:block error:error];
+}
+
+- (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
+    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
+    //    NSLog(@"PREFIX: %@", prefix);
+    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
+    GTWAOFBTree* spog       = _indexes[@"SPOG"];
+    GTWAOFBTreeNode* lca    = [spog lcaNodeForKeysWithPrefix:prefix];
+    //    NSLog(@"LCA: %@", lca);
+    return [lca lastModified];
+    
+    // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot
+    //    return [_quads lastModified];
+}
+
+#pragma mark -
 
 @end
 
