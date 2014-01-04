@@ -494,9 +494,9 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
     
     if (!leaf.isFull) {
         //        NSLog(@"leaf can hold new entry: %@", leaf);
-        NSInteger leafcount = [leaf count];
+        NSInteger leafcount = [leaf nodeItemCount];
         GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf addingObject:value forKey:key updateContext:ctx];
-        assert((leafcount+1) == [newnode count]);
+        assert((leafcount+1) == [newnode nodeItemCount]);
         //        NSLog(@"going to rewrite:\n\tfrom: %@\n\troot: %@", newnode, _root);
         _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
     } else {
@@ -563,19 +563,19 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
     if (!value)
         return NO;
     if (!leaf.isMinimum) {
-        NSLog(@"Leaf won't underflow (%lld pairs); removing...", (long long)[leaf count]);
+        NSLog(@"Leaf won't underflow (%lld pairs); removing...", (long long)[leaf nodeItemCount]);
         GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf removingObjectForKey:key updateContext:ctx];
         _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
     } else if (leaf.isRoot) {
-        NSLog(@"Leaf would underflow (%lld pairs), but it is the root; special case removing...", (long long)[leaf count]);
+        NSLog(@"Leaf would underflow (%lld pairs), but it is the root; special case removing...", (long long)[leaf nodeItemCount]);
         GTWAOFBTreeNode* newnode    = [GTWMutableAOFBTreeNode rewriteLeafNode:leaf removingObjectForKey:key updateContext:ctx];
         _root   = [self rewriteToRootFromNewNode:newnode replacingOldNode:leaf updateContext:ctx];
     } else {
-        NSLog(@"Leaf would underflow (%lld pairs); trying to combine with sibling", (long long)[leaf count]);
+        NSLog(@"Leaf would underflow (%lld pairs); trying to combine with sibling", (long long)[leaf nodeItemCount]);
         // find a sibling
         GTWAOFBTreeNode* sibling    = [leaf fullestSibling];
         NSLog(@"fullest sibling: %@", sibling);
-        NSInteger combined  = [leaf count] + [sibling count];
+        NSInteger combined  = [leaf nodeItemCount] + [sibling nodeItemCount];
         if (combined >= [leaf minLeafPageKeys]) {
             // if the sibling and this node have enough pairs to not underflow, redistribute the pairs, write a new leaf node from the siblings' data, rewrite the parent, and rewrite the path from the parent to the root
             NSLog(@"-> can combine with sibling (%lld total pairs)", (long long)combined);

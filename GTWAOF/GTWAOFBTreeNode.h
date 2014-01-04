@@ -52,7 +52,8 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
 - (BOOL) isMinimum;
 - (NSInteger) minInternalPageKeys;
 - (NSInteger) minLeafPageKeys;
-- (NSUInteger) count;
+- (NSUInteger) nodeItemCount;
+- (NSUInteger) subTreeItemCount;
 - (NSArray*) allKeys;
 - (NSArray*) allObjects;
 - (NSArray*) allPairs;

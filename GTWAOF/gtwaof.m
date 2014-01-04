@@ -216,23 +216,25 @@ void printPageSummary ( id<GTWAOF> aof, GTWAOFPage* p ) {
         fprintf(stdout, "    Quads         : %lld\n", (long long)count);
     } else if ([c rangeOfString:@"BPT[IL]" options:NSRegularExpressionSearch].location == 0) {
         GTWAOFBTreeNode* obj        = [[GTWAOFBTreeNode alloc] initWithPage:p parent:nil fromAOF:aof];
-        NSUInteger count            = [obj count];
+        NSUInteger count            = [obj nodeItemCount];
         fprintf(stdout, "    Flags         : %s\n", (obj.isRoot) ? "None" : "Root");
-        fprintf(stdout, "    Keys          : %lld\n", (long long)count);
         fprintf(stdout, "    Pair sizes    : { %lld, %lld }\n", (long long)obj.keySize, (long long)obj.valSize);
-        if (obj.isRoot) {
-            NSInteger maxInternal   = obj.maxInternalPageKeys;
-            NSInteger maxLeaf       = obj.maxLeafPageKeys;
-            fprintf(stdout, "    Int. Capacity : %lld\n", (long long)maxInternal);
-            fprintf(stdout, "    Leaf Capacity : %lld\n", (long long)maxLeaf);
-        }
         if ([c isEqualToString:@"BPTI"]) {
             NSArray* children   = [obj childrenPageIDs];
             NSMutableIndexSet* set  = [NSMutableIndexSet indexSet];
             for (NSNumber* n in children) {
                 [set addIndex:[n integerValue]];
             }
-            fprintf(stdout, "    Children      : %s\n", [[set gtw_indexRanges] UTF8String]);
+            fprintf(stdout, "    Subtree count : %llu\n", (unsigned long long)obj.subTreeItemCount);
+            fprintf(stdout, "    Children      : (%lld) %s\n", (long long)(1+count), [[set gtw_indexRanges] UTF8String]);
+        } else {
+            fprintf(stdout, "    Pairs         : %lld\n", (long long)count);
+        }
+        if (obj.isRoot) {
+            NSInteger maxInternal   = obj.maxInternalPageKeys;
+            NSInteger maxLeaf       = obj.maxLeafPageKeys;
+            fprintf(stdout, "    Int. Capacity : %lld\n", (long long)maxInternal);
+            fprintf(stdout, "    Leaf Capacity : %lld\n", (long long)maxLeaf);
         }
     }
 }

@@ -11,15 +11,16 @@
 #import "NSData+GTWCompare.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
 
-#define TS_OFFSET       8
-#define COUNT_OFFSET    16
-#define FLAGS_OFFSET    24
-#define SIZES_OFFSET    28
-#define DATA_OFFSET     32
+#define TS_OFFSET                   8
+#define NODE_ITEM_COUNT_OFFSET      16
+#define FLAGS_OFFSET                24
+#define SIZES_OFFSET                28
+#define SUBTREE_ITEM_COUNT_OFFSET   32
+#define DATA_OFFSET                 40
 
-#define KEY_LENGTH      32
-#define VAL_LENGTH      8
-#define OFFSET_LENGTH   8
+#define KEY_LENGTH                  32
+#define VAL_LENGTH                  8
+#define OFFSET_LENGTH               8
 
 static NSData* dataFromInteger(NSUInteger value) {
     long long n = (long long) value;
@@ -170,7 +171,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     NSInteger ksize = self.keySize;
     if (self.type == GTWAOFBTreeLeafNodeType) {
         int offset  = DATA_OFFSET;
-        NSUInteger count    = [self count];
+        NSUInteger count    = [self nodeItemCount];
         NSInteger i;
         NSData* data    = _page.data;
         NSMutableArray* keys    = [NSMutableArray array];
@@ -190,7 +191,7 @@ static inline NSUInteger integerFromData(NSData* data) {
         _objects    = [vals copy];
     } else {
         int offset  = DATA_OFFSET;
-        NSUInteger count    = [self count];
+        NSUInteger count    = [self nodeItemCount];
         NSInteger i;
         NSData* data    = _page.data;
         NSMutableArray* keys    = [NSMutableArray array];
@@ -267,11 +268,20 @@ static inline NSUInteger integerFromData(NSData* data) {
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
-- (NSUInteger) count {
+- (NSUInteger) nodeItemCount {
     GTWAOFPage* p       = _page;
     NSData* data        = p.data;
     uint64_t big_count  = 0;
-    [data getBytes:&big_count range:NSMakeRange(COUNT_OFFSET, 8)];
+    [data getBytes:&big_count range:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8)];
+    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
+    return (NSUInteger) count;
+}
+
+- (NSUInteger) subTreeItemCount {
+    GTWAOFPage* p       = _page;
+    NSData* data        = p.data;
+    uint64_t big_count  = 0;
+    [data getBytes:&big_count range:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8)];
     unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
     return (NSUInteger) count;
 }
@@ -329,7 +339,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 - (void)enumerateKeysAndPageIDsUsingBlock:(void (^)(NSData* key, NSInteger pageID, BOOL *stop))block {
     assert(self.type == GTWAOFBTreeInternalNodeType);
     NSInteger i;
-    NSUInteger count    = [self count];
+    NSUInteger count    = [self nodeItemCount];
     BOOL stop           = NO;
     for (i = 0; i < count; i++) {
         NSNumber* number    = _pageIDs[i];
@@ -359,7 +369,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 - (void)enumerateKeysAndObjectsUsingBlock:(void (^)(NSData* key, NSData* obj, BOOL *stop))block {
     assert(self.type == GTWAOFBTreeLeafNodeType);
-    NSUInteger count    = [self count];
+    NSUInteger count    = [self nodeItemCount];
     [self enumerateKeysAndObjectsInRange:NSMakeRange(0, count) usingBlock:block];
     return;
 }
@@ -368,7 +378,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     assert(self.type != GTWAOFBTreeLeafNodeType);
     Class class = [self class];
     NSInteger i;
-    NSUInteger count    = [self count];
+    NSUInteger count    = [self nodeItemCount];
     for (i = 0; i < count; i++) {
         NSData* k = _keys[i];
         NSComparisonResult r    = [key gtw_compare:k];
@@ -386,7 +396,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 - (NSString*) longDescription {
     NSData* max = [self maxKey];
     NSString* type  = (self.type == GTWAOFBTreeLeafNodeType) ? @"Leaf" : @"Internal";
-    NSInteger count = [self count];
+    NSInteger count = [self nodeItemCount];
     if (self.type == GTWAOFBTreeInternalNodeType) {
         count++;    // the count is for the keys. internal nodes also have a key-less (right-most) child
     }
@@ -418,7 +428,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 - (NSString*) description {
     NSData* max = [self maxKey];
     NSString* type  = (self.type == GTWAOFBTreeLeafNodeType) ? @"Leaf" : @"Internal";
-    NSInteger count = [self count];
+    NSInteger count = [self nodeItemCount];
     if (self.type == GTWAOFBTreeInternalNodeType) {
         count++;    // the count is for the keys. internal nodes also have a key-less (right-most) child
     }
@@ -432,7 +442,7 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 - (BOOL) verifyHavingSeenRoot:(BOOL)seenRoot {
     NSLog(@"Verifying B+ Tree node %@ (on page %lld)", self, (long long)self.pageID);
-    NSInteger count = [self count];
+    NSInteger count = [self nodeItemCount];
     NSArray* keys   = [self allKeys];
     if (count != [keys count]) {
         NSLog(@"Key count doesn't match number of keys found");
@@ -556,6 +566,20 @@ static inline NSUInteger integerFromData(NSData* data) {
     }
 }
 
++ (NSUInteger) subTreeCountWithPageIDs:(NSArray*)pageIDs fromAOF:(id<GTWAOF>)aof {
+    NSUInteger count    = 0;
+//    NSLog(@"--------------");
+    for (NSNumber* number in pageIDs) {
+        NSInteger pageID    = [number integerValue];
+        GTWAOFBTreeNode* n  = [GTWAOFBTreeNode nodeWithPageID:pageID parent:nil fromAOF:aof];
+        NSUInteger subcount = [n subTreeItemCount];
+//        NSLog(@"+ %llu", (unsigned long long)subcount);
+        count               += subcount;
+    }
+//    NSLog(@"=== %llu", (unsigned long long)count);
+    return count;
+}
+
 @end
 
 @implementation GTWMutableAOFBTreeNode
@@ -566,8 +590,8 @@ static inline NSUInteger integerFromData(NSData* data) {
         NSLog(@"creating btree leaf page data");
     }
     uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t count       = [keys count];
-    int32_t flags  = 0;
+    int64_t count   = [keys count];
+    int32_t flags   = 0;
     if (root) {
         flags   |= GTWAOFBTreeRoot;
     }
@@ -575,14 +599,15 @@ static inline NSUInteger integerFromData(NSData* data) {
     int16_t vsize       = (int16_t) valSize;
 
     int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    int32_t bigflags   = (uint32_t) NSSwapHostIntToBig((unsigned int) flags);
+    int32_t bigflags    = (uint32_t) NSSwapHostIntToBig((unsigned int) flags);
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:BTREE_LEAF_NODE_COOKIE];
     [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
     [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:&bigflags];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET, 2) withBytes:&bigksize];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET+2, 2) withBytes:&bigvsize];
@@ -625,13 +650,14 @@ static inline NSUInteger integerFromData(NSData* data) {
     return data;
 }
 
-+ (NSData*) newInternalDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys childrenIDs:(NSArray*)childrenPageIDs verbose:(BOOL)verbose {
++ (NSData*) newInternalDataWithPageSize:(NSUInteger)pageSize root:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys childrenIDs:(NSArray*)childrenPageIDs subTreeCount:(NSUInteger)subtreeCount verbose:(BOOL)verbose {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
     if (verbose) {
         NSLog(@"creating btree internal page data with pointers: %@", childrenPageIDs);
     }
     uint64_t bigts      = NSSwapHostLongLongToBig(ts);
     int64_t count       = [keys count];
+    int64_t subcount    = (int64_t) subtreeCount;
     int32_t flags       = 0;
     if (root) {
         flags   |= GTWAOFBTreeRoot;
@@ -640,6 +666,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     int16_t vsize       = (int16_t) valSize;
 
     int64_t bigcount    = NSSwapHostLongLongToBig(count);
+    int64_t bigsubcount = NSSwapHostLongLongToBig(subcount);
     int32_t bigflags    = (int32_t) NSSwapHostIntToBig((unsigned int) flags);
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
@@ -647,7 +674,8 @@ static inline NSUInteger integerFromData(NSData* data) {
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:BTREE_INTERNAL_NODE_COOKIE];
     [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:&bigsubcount];
     [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:&bigflags];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET, 2) withBytes:&bigksize];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET+2, 2) withBytes:&bigvsize];
@@ -705,11 +733,12 @@ static inline NSUInteger integerFromData(NSData* data) {
     if (self = [self init]) {
         [self setKeySize:keySize];
         [self setValSize:valSize];
-        NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:root keySize:keySize valueSize:valSize keys:keys childrenIDs:objects verbose:NO];
+        NSUInteger count    = [GTWAOFBTreeNode subTreeCountWithPageIDs:objects fromAOF:ctx];
+        NSData* data        = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:root keySize:keySize valueSize:valSize keys:keys childrenIDs:objects subTreeCount:count verbose:NO];
         if (!data)
             return nil;
-        GTWAOFPage* p   = [ctx createPageWithData: data];
-        self            = [self initWithPage:p parent:parent fromAOF:ctx];
+        GTWAOFPage* p       = [ctx createPageWithData: data];
+        self                = [self initWithPage:p parent:parent fromAOF:ctx];
         [ctx registerPageObject:self];
     }
     return self;
@@ -746,7 +775,8 @@ static inline NSUInteger integerFromData(NSData* data) {
     if (found < [keys count]) {
         keys[found] = [newNode maxKey];
     }
-    NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:ids verbose:NO];
+    NSUInteger subTreeCount    = [self subTreeCountWithPageIDs:ids fromAOF:ctx];
+    NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:ids subTreeCount:subTreeCount verbose:NO];
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData:data];
@@ -763,6 +793,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     if (!node.isRoot) {
         assert(![node isMinimum]);
     }
+    assert([oldchildren count] == 2);
     NSMutableArray* keys    = [[node allKeys] mutableCopy];
     NSMutableArray* ids     = [[node childrenPageIDs] mutableCopy];
     NSInteger keycount      = [keys count];
@@ -788,7 +819,8 @@ static inline NSUInteger integerFromData(NSData* data) {
     if (i < (keycount-1)) {
         [keys insertObject:[newNode maxKey] atIndex:i];
     }
-    NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:ids verbose:NO];
+    NSUInteger subTreeCount    = [self subTreeCountWithPageIDs:ids fromAOF:ctx];
+    NSData* data    = [[self class] newInternalDataWithPageSize:[ctx pageSize] root:node.isRoot keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:ids subTreeCount:subTreeCount verbose:NO];
     if (!data)
         return nil;
     GTWAOFPage* p   = [ctx createPageWithData:data];
@@ -971,8 +1003,12 @@ static inline NSUInteger integerFromData(NSData* data) {
         NSArray* rkeys      = [keys subarrayWithRange:NSMakeRange(mid, count-mid-1)];
         NSArray* rchildren  = [children subarrayWithRange:rrange];
         
-        NSData* ldata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:lkeys childrenIDs:lchildren verbose:NO];
-        NSData* rdata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:rkeys childrenIDs:rchildren verbose:NO];
+        NSUInteger lCount   = [self subTreeCountWithPageIDs:lchildren fromAOF:ctx];
+        NSUInteger rCount   = [self subTreeCountWithPageIDs:rchildren fromAOF:ctx];
+        
+//        NSLog(@"%llu == %llu + %llu", (unsigned long long)[children count], (unsigned long long)lCount, (unsigned long long)rCount);
+        NSData* ldata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:lkeys childrenIDs:lchildren subTreeCount:lCount verbose:NO];
+        NSData* rdata   = [self newInternalDataWithPageSize:[ctx pageSize] root:NO keySize:node.keySize valueSize:node.valSize keys:rkeys childrenIDs:rchildren subTreeCount:rCount verbose:NO];
         if (!(ldata && rdata))
             return nil;
         
@@ -993,7 +1029,8 @@ static inline NSUInteger integerFromData(NSData* data) {
             }
         }
     } else {
-        NSData* data   = [self newInternalDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:children verbose:NO];
+        NSUInteger count    = [self subTreeCountWithPageIDs:children fromAOF:ctx];
+        NSData* data        = [self newInternalDataWithPageSize:[ctx pageSize] root:[node isRoot] keySize:node.keySize valueSize:node.valSize keys:keys childrenIDs:children subTreeCount:count verbose:NO];
         if (!data)
             return nil;
         
