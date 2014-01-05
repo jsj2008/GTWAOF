@@ -267,7 +267,7 @@ int main(int argc, const char * argv[]) {
     BOOL verbose        = NO;
     NSInteger back      = 0;
     NSInteger pageID    = -1;
-    const char* filename    = "db/test.db";
+    const char* filename    = "test.db";
     while (argc > argi && argv[argi][0] == '-') {
         if (!strcmp(argv[argi], "-s")) {
             argi++;
@@ -337,10 +337,11 @@ int main(int argc, const char * argv[]) {
                     g   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
                 }
             }
+            
             NSError* error;
             double start_export = current_time();
             NSDate* date    = [store lastModifiedDateForQuadsMatchingSubject:s predicate:p object:o graph:g error:&error];
-            NSLog(@"Last-Modified: %@", [date descriptionWithCalendarFormat:@"%Y-%m-%dT%H:%M:%S%z" timeZone:[NSTimeZone localTimeZone] locale:[NSLocale currentLocale]]);
+            fprintf(stderr, "Last-Modified: %s\n\n", [[date descriptionWithCalendarFormat:@"%Y-%m-%dT%H:%M:%S%z" timeZone:[NSTimeZone localTimeZone] locale:[NSLocale currentLocale]] UTF8String]);
             [store enumerateQuadsMatchingSubject:s predicate:p object:o graph:g usingBlock:^(id<GTWQuad> q) {
                 fprintf(stdout, "%s\n", [[q description] UTF8String]);
             } error:&error];
@@ -695,6 +696,7 @@ int main(int argc, const char * argv[]) {
                         NSLog(@"%@", error);
                     }
                 } error:&error];
+                fprintf(stderr, "\r");
                 if (error) {
                     NSLog(@"%@", error);
                 }

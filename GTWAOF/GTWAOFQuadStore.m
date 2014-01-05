@@ -289,15 +289,15 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (NSData*) _IDDataFromTerm:(id<GTWTerm>)term {
+    NSData* ident   = [_gen identifierForTerm:term assign:NO];
+    if (ident) {
+        return ident;
+    }
+    
     NSData* termData    = [self dataFromTerm:term];
-    return [self _IDDataFromTermData:termData];
-    NSData* hash    = [self hashData:termData];
-    NSData* data    = [_btreeTerm2ID objectForKey:hash];
-    NSLog(@"got data for term: %@ -> %@", term, data);
-    return data;
-//    NSData* d   = [_dict objectForKey:[self dataFromTerm:term]];
-//    NSLog(@"-> %@", d);
-//    return d;
+    ident       = [self _IDDataFromTermData:termData];
+//    NSLog(@"got data for term: %@ -> %@", term, ident);
+    return ident;
 }
 
 - (id<GTWTerm>) _termFromIDData:(NSData*)idData {
@@ -451,13 +451,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
                 break;
         }
         if (term) {
+//            NSLog(@"adding term id to prefix: %@", term);
             [termsInKeyOrder addObject:term];
         } else {
             break;
         }
     }
     
-    NSLog(@"Terms in key order: %@", termsInKeyOrder);
+//    NSLog(@"Terms in key order: %@", termsInKeyOrder);
     
     if (([termsInKeyOrder count] > 0) && termsInKeyOrder[0] && !([termsInKeyOrder[0] isKindOfClass:[GTWVariable class]])) {
         [prefix appendData: [self _IDDataFromTerm:termsInKeyOrder[0]]];
@@ -471,8 +472,10 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             }
         }
     }
-    
-    NSLog(@"Prefix for key order %@: %@", keyOrder, prefix);
+
+//    NSLog(@"prefix: %@", prefix);
+
+//    NSLog(@"Prefix for key order %@: %@", keyOrder, prefix);
     return [prefix copy];
 }
 
@@ -482,13 +485,13 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     if (p && !([p isKindOfClass:[GTWVariable class]])) bound |= 0x4;
     if (o && !([o isKindOfClass:[GTWVariable class]])) bound |= 0x2;
     if (g && !([g isKindOfClass:[GTWVariable class]])) bound |= 0x1;
-	NSLog(@"Bound: %x", bound);
+//	NSLog(@"Bound: %x", bound);
     
     NSInteger maxLength     = -1;
     NSString* maxKeyOrder   = nil;
     NSMutableDictionary* prefixLengths  = [NSMutableDictionary dictionary];
     for (NSString* keyOrder in _indexes) {
-        NSLog(@"KEY ORDER: %@", keyOrder);
+//        NSLog(@"KEY ORDER: %@", keyOrder);
 //        NSMutableArray* keyOrderArray   = [NSMutableArray array];
         NSInteger length   = 0;
         for (NSInteger i = 0; i < [keyOrder length]; i++) {
@@ -516,7 +519,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
                 break;
             }
         }
-        if (length > maxLength) {
+        if (length > maxLength && length > 0) {
             maxLength   = length;
             maxKeyOrder = keyOrder;
         }
@@ -524,10 +527,14 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         prefixLengths[keyOrder] = @(length);
     }
     if (!maxKeyOrder) {
-        maxKeyOrder = [[_indexes allKeys] firstObject];
-        NSLog(@"defaulting to key order %@", maxKeyOrder);
+        maxKeyOrder = @"SPOG";
+//        NSArray* orders = [_indexes allKeys];
+//        NSArray* sorted = [orders sortedArrayUsingComparator:^NSComparisonResult(NSString* obj1, NSString* obj2) { return [obj1 compare:obj2]; }];
+//        maxKeyOrder = [sorted lastObject];
+//        NSLog(@"defaulting to key order %@", maxKeyOrder);
     }
-    NSLog(@"Prefix lengths: %@", prefixLengths);
+//    NSLog(@"Prefix lengths: %@", prefixLengths);
+//    NSLog(@"using key order %@", maxKeyOrder);
     return maxKeyOrder;
 }
 
@@ -661,6 +668,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 //    NSLog(@"best key order: %@", bestKeyOrder);
     GTWAOFBTree* index  = _indexes[bestKeyOrder];
     NSData* bestPrefix  = [self prefixForKeyOrder:bestKeyOrder matchingSubject:s predicate:p object:o graph:g];
+//    NSLog(@"index prefix: %@", bestPrefix);
     
     @autoreleasepool {
         [index enumerateKeysAndObjectsMatchingPrefix:bestPrefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
