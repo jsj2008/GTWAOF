@@ -428,22 +428,107 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     return _btreeTerm2ID.pageID;
 }
 
-- (NSData*) spogPrefixMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
-    // TODO: generalize this to produce prefixes for arbitrary key orders
+- (NSData*) prefixForKeyOrder:(NSString*)keyOrder matchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
     NSMutableData* prefix   = [NSMutableData data];
-    if (s && !([s isKindOfClass:[GTWVariable class]])) {
-        [prefix appendData: [self _IDDataFromTerm:s]];
-        if (p && !([p isKindOfClass:[GTWVariable class]])) {
-            [prefix appendData: [self _IDDataFromTerm:p]];
-            if (o && !([o isKindOfClass:[GTWVariable class]])) {
-                [prefix appendData: [self _IDDataFromTerm:o]];
-                if (g && !([g isKindOfClass:[GTWVariable class]])) {
-                    [prefix appendData: [self _IDDataFromTerm:g]];
+    NSMutableArray* termsInKeyOrder = [NSMutableArray arrayWithCapacity:4];
+    for (NSInteger i = 0; i < [keyOrder length]; i++) {
+        unichar pos     = [keyOrder characterAtIndex:i];
+        id<GTWTerm> term;
+        switch (pos) {
+            case 'S':
+                term    = s;
+                break;
+            case 'P':
+                term    = p;
+                break;
+            case 'O':
+                term    = o;
+                break;
+            case 'G':
+                term    = g;
+                break;
+            default:
+                break;
+        }
+        if (term) {
+            [termsInKeyOrder addObject:term];
+        } else {
+            break;
+        }
+    }
+    
+    NSLog(@"Terms in key order: %@", termsInKeyOrder);
+    
+    if (([termsInKeyOrder count] > 0) && termsInKeyOrder[0] && !([termsInKeyOrder[0] isKindOfClass:[GTWVariable class]])) {
+        [prefix appendData: [self _IDDataFromTerm:termsInKeyOrder[0]]];
+        if (([termsInKeyOrder count] > 1) && termsInKeyOrder[1] && !([termsInKeyOrder[1] isKindOfClass:[GTWVariable class]])) {
+            [prefix appendData: [self _IDDataFromTerm:termsInKeyOrder[1]]];
+            if (([termsInKeyOrder count] > 2) && termsInKeyOrder[2] && !([termsInKeyOrder[2] isKindOfClass:[GTWVariable class]])) {
+                [prefix appendData: [self _IDDataFromTerm:termsInKeyOrder[2]]];
+                if (([termsInKeyOrder count] > 3) && termsInKeyOrder[3] && !([termsInKeyOrder[3] isKindOfClass:[GTWVariable class]])) {
+                    [prefix appendData: [self _IDDataFromTerm:termsInKeyOrder[3]]];
                 }
             }
         }
     }
+    
+    NSLog(@"Prefix for key order %@: %@", keyOrder, prefix);
     return [prefix copy];
+}
+
+- (NSString*) bestKeyOrderMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g {
+	int bound	= 0;
+    if (s && !([s isKindOfClass:[GTWVariable class]])) bound |= 0x8;
+    if (p && !([p isKindOfClass:[GTWVariable class]])) bound |= 0x4;
+    if (o && !([o isKindOfClass:[GTWVariable class]])) bound |= 0x2;
+    if (g && !([g isKindOfClass:[GTWVariable class]])) bound |= 0x1;
+	NSLog(@"Bound: %x", bound);
+    
+    NSInteger maxLength     = -1;
+    NSString* maxKeyOrder   = nil;
+    NSMutableDictionary* prefixLengths  = [NSMutableDictionary dictionary];
+    for (NSString* keyOrder in _indexes) {
+        NSLog(@"KEY ORDER: %@", keyOrder);
+//        NSMutableArray* keyOrderArray   = [NSMutableArray array];
+        NSInteger length   = 0;
+        for (NSInteger i = 0; i < [keyOrder length]; i++) {
+            unichar pos     = [keyOrder characterAtIndex:i];
+            int pos_mask    = 0;
+            switch (pos) {
+                case 'S':
+                    pos_mask    = 0x8;
+                    break;
+                case 'P':
+                    pos_mask    = 0x4;
+                    break;
+                case 'O':
+                    pos_mask    = 0x2;
+                    break;
+                case 'G':
+                    pos_mask    = 0x1;
+                    break;
+                default:
+                    break;
+            }
+            if (bound & pos_mask) {
+                length  += 8;
+            } else {
+                break;
+            }
+        }
+        if (length > maxLength) {
+            maxLength   = length;
+            maxKeyOrder = keyOrder;
+        }
+//        NSLog(@"-> %@", keyOrderArray);
+        prefixLengths[keyOrder] = @(length);
+    }
+    if (!maxKeyOrder) {
+        maxKeyOrder = [[_indexes allKeys] firstObject];
+        NSLog(@"defaulting to key order %@", maxKeyOrder);
+    }
+    NSLog(@"Prefix lengths: %@", prefixLengths);
+    return maxKeyOrder;
 }
 
 #pragma mark - Quad Store Methods
@@ -470,7 +555,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     };
     
     NSMutableSet* graphs    = [NSMutableSet set];
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];    // TODO: should enumerate with an index whose key order starts with G
+    GTWAOFBTree* spog   = _indexes[@"SPOG"];    // TODO: should enumerate with an index whose key order is {G}
     [spog enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
         NSData* data        = key;
         id<GTWTerm> g       = dataToGraph(data);
@@ -509,7 +594,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (BOOL) enumerateQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g usingBlock: (void (^)(id<GTWQuad> q)) block error:(NSError *__autoreleasing*)error {
-    
     if ([s isKindOfClass:[GTWVariable class]])
         s   = nil;
     if ([p isKindOfClass:[GTWVariable class]])
@@ -540,11 +624,26 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         block(q);
     };
     
-    id<GTWQuad> (^dataToQuad)(NSData*) = ^id<GTWQuad>(NSData* data) {
-        NSData* skey        = [data subdataWithRange:NSMakeRange(0, 8)];
-        NSData* pkey        = [data subdataWithRange:NSMakeRange(8, 8)];
-        NSData* okey        = [data subdataWithRange:NSMakeRange(16, 8)];
-        NSData* gkey        = [data subdataWithRange:NSMakeRange(24, 8)];
+    id<GTWQuad> (^dataToQuad)(NSData*, NSString*) = ^id<GTWQuad>(NSData* data, NSString* keyOrder) {
+        NSInteger soffset, poffset, ooffset, goffset;
+        for (NSInteger i = 0; i < [keyOrder length]; i++) {
+            unichar pos     = [keyOrder characterAtIndex:i];
+            NSInteger offset    = 8*i;
+            if (pos == 'S') {
+                soffset = offset;
+            } else if (pos == 'P') {
+                poffset = offset;
+            } else if (pos == 'O') {
+                ooffset = offset;
+            } else if (pos == 'G') {
+                goffset = offset;
+            }
+        }
+        
+        NSData* skey        = [data subdataWithRange:NSMakeRange(soffset, 8)];
+        NSData* pkey        = [data subdataWithRange:NSMakeRange(poffset, 8)];
+        NSData* okey        = [data subdataWithRange:NSMakeRange(ooffset, 8)];
+        NSData* gkey        = [data subdataWithRange:NSMakeRange(goffset, 8)];
         
         id<GTWTerm> s       = [self _termFromIDData:skey];
         id<GTWTerm> p       = [self _termFromIDData:pkey];
@@ -558,13 +657,15 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         return q;
     };
     
-    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
-    GTWAOFBTree* spog   = _indexes[@"SPOG"];
-    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
+    NSString* bestKeyOrder  = [self bestKeyOrderMatchingSubject:s predicate:p object:o graph:g];
+//    NSLog(@"best key order: %@", bestKeyOrder);
+    GTWAOFBTree* index  = _indexes[bestKeyOrder];
+    NSData* bestPrefix  = [self prefixForKeyOrder:bestKeyOrder matchingSubject:s predicate:p object:o graph:g];
+    
     @autoreleasepool {
-        [spog enumerateKeysAndObjectsMatchingPrefix:prefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+        [index enumerateKeysAndObjectsMatchingPrefix:bestPrefix usingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
             NSData* data        = key;
-            id<GTWQuad> q       = dataToQuad(data);
+            id<GTWQuad> q       = dataToQuad(data, bestKeyOrder);
             if (q) {
                 testQuad(q);
             } else {
@@ -576,7 +677,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         // if the raw quads pages are used to store quads that aren't in the b+ tree, this block should be enabled
         [_quads enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
             NSData* data        = obj;
-            id<GTWQuad> q       = dataToQuad(data);
+            id<GTWQuad> q       = dataToQuad(data, bestKeyOrder);
             if (q) {
                 testQuad(q);
             } else {
@@ -592,12 +693,12 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 }
 
 - (NSDate*) lastModifiedDateForQuadsMatchingSubject: (id<GTWTerm>) s predicate: (id<GTWTerm>) p object: (id<GTWTerm>) o graph: (id<GTWTerm>) g error:(NSError *__autoreleasing*)error {
-    NSData* prefix  = [self spogPrefixMatchingSubject:s predicate:p object:o graph:g];
-    //    NSLog(@"PREFIX: %@", prefix);
-    // TODO: should choose the index and prefix based on the best key order available for the bound terms in { s, p, o, g }
-    GTWAOFBTree* spog       = _indexes[@"SPOG"];
-    GTWAOFBTreeNode* lca    = [spog lcaNodeForKeysWithPrefix:prefix];
-    //    NSLog(@"LCA: %@", lca);
+    NSString* bestKeyOrder  = [self bestKeyOrderMatchingSubject:s predicate:p object:o graph:g];
+    GTWAOFBTree* index  = _indexes[bestKeyOrder];
+    NSData* bestPrefix  = [self prefixForKeyOrder:bestKeyOrder matchingSubject:s predicate:p object:o graph:g];
+  
+    GTWAOFBTreeNode* lca    = [index lcaNodeForKeysWithPrefix:bestPrefix];
+//    NSLog(@"LCA: %@", lca);
     return [lca lastModified];
     
     // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot
@@ -909,9 +1010,6 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     //    NSLog(@"creating new quads head");
     __block GTWMutableAOFRawQuads* rawquads = self.mutableQuads;
-//    GTWMutableAOFBTree* spog    = _indexes[@"SPOG"];
-    // TODO: insert into other indexes (re-ordering the data to match the index key order)
-//    NSDictionary* indexes       = _indexes;
     __block NSInteger insertedCount = 0;
     [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         for (NSString* keyOrder in keyOrderQuadDataDicts) {

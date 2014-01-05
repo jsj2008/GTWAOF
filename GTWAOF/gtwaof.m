@@ -315,7 +315,27 @@ int main(int argc, const char * argv[]) {
             id<GTWTerm> s, p, o, g;
             if (argc > argi) {
                 const char* ss  = argv[argi++];
-                s   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+                if (strlen(ss)) {
+                    s   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+                }
+            }
+            if (argc > argi) {
+                const char* ss  = argv[argi++];
+                if (strlen(ss)) {
+                    p   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+                }
+            }
+            if (argc > argi) {
+                const char* ss  = argv[argi++];
+                if (strlen(ss)) {
+                    o   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+                }
+            }
+            if (argc > argi) {
+                const char* ss  = argv[argi++];
+                if (strlen(ss)) {
+                    g   = termFromData(parser, [NSData dataWithBytes:ss length:strlen(ss)]);
+                }
             }
             NSError* error;
             double start_export = current_time();
