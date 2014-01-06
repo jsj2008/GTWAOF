@@ -17,6 +17,7 @@
 #import "GTWAOFRawQuads.h"
 #import "GTWAOFUpdateContext.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+#import "NSData+GTWCompare.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -109,10 +110,7 @@
 
 - (NSInteger) previousPageID {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_prev = 0;
-    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
-    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
+    NSUInteger prev = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
     return (NSInteger) prev;
 }
 
@@ -130,20 +128,14 @@
 
 - (NSDate*) lastModified {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
 - (NSUInteger) count {
     GTWAOFPage* p       = _head;
-    NSData* data        = p.data;
-    uint64_t big_count  = 0;
-    [data getBytes:&big_count range:NSMakeRange(COUNT_OFFSET, 8)];
-    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
-    return (NSUInteger) count;
+    NSUInteger count = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(COUNT_OFFSET, 8)];
+    return count;
 }
 
 - (NSArray*) allObjects {
@@ -182,10 +174,7 @@
 //            NSLog(@"Quads Page: %lu", q.pageID);
 //            NSLog(@"Quads Page Last-Modified: %@", [q lastModified]);
             GTWAOFPage* p   = q.head;
-            NSData* data    = p.data;
-            int64_t big_prev_page_id    = -1;
-            [data getBytes:&big_prev_page_id range:NSMakeRange(PREV_OFFSET, 8)];
-            long long prev_page_id = NSSwapBigLongLongToHost(big_prev_page_id);
+            long long prev_page_id = (long long)[p.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
 //            NSLog(@"Quads Previous Page: %"PRId64, prev_page_id);
             
             NSUInteger count    = [q count];

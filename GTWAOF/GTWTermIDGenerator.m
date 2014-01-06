@@ -11,6 +11,7 @@
 #import <GTWSWBase/GTWLiteral.h>
 #import <GTWSWBase/GTWBlank.h>
 #include <arpa/inet.h>
+#import "NSData+GTWCompare.h"
 
 #define MAX_ORDINAL_VALUE	0x00FFFFFFFFFFFFFFLL
 #define MAX_INTEGER_VALUE	0x00FFFFFFFFFFFFFFLL
@@ -382,7 +383,7 @@ static node_subtype_t node_subtype ( NSData* data ) {
     [ident getBytes:&idvalue length:8];
     char* ip    = (char*)&idvalue;
     uint64_t value  = NSSwapBigLongLongToHost(idvalue);
-
+    
     const char* string  = NULL;
 	if (value == NODE_ID_RDF_LIST) {
         string  = RDF_LIST;

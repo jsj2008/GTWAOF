@@ -17,6 +17,7 @@
 #import "GTWAOFRawValue.h"
 #import "GTWAOFUpdateContext.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+#import "NSData+GTWCompare.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -33,10 +34,7 @@
     }
     
     GTWAOFPage* p   = _head;
-    uint64_t big_length = 0;
-    [p.data getBytes:&big_length range:NSMakeRange(LENGTH_OFFSET, 8)];
-    unsigned long long length = NSSwapBigLongLongToHost((unsigned long long) big_length);
-    
+    unsigned long long length   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(LENGTH_OFFSET, 8)];
     NSData* pageData    = [p.data subdataWithRange: NSMakeRange(DATA_OFFSET, length)];
     [data appendData: pageData];
     self.data   = [data copy];
@@ -94,10 +92,7 @@
 
 - (NSInteger) previousPageID {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_prev = 0;
-    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
-    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
+    NSUInteger prev   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
     return (NSInteger) prev;
 }
 
@@ -112,10 +107,7 @@
 
 - (NSDate*) lastModified {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
@@ -125,11 +117,8 @@
 
 - (NSUInteger) pageLength {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_length = 0;
-    [data getBytes:&big_length range:NSMakeRange(LENGTH_OFFSET, 8)];
-    unsigned long long length = NSSwapBigLongLongToHost((unsigned long long) big_length);
-    return (NSUInteger) length;
+    NSUInteger length   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(LENGTH_OFFSET, 8)];
+    return length;
 }
 
 NSMutableData* emptyValueData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {

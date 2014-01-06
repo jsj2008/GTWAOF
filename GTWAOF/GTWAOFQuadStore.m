@@ -13,6 +13,7 @@
 #include <CommonCrypto/CommonDigest.h>
 #import "NSData+GTWTerm.h"
 #import <SPARQLKit/SPARQLKit.h>
+#import "NSData+GTWCompare.h"
 
 #define BULK_LOADING_BATCH_SIZE 500
 
@@ -22,19 +23,6 @@
 #define DATA_OFFSET     32
 
 #define DEBUG           1
-
-//static NSData* dataFromInteger(NSUInteger value) {
-//    long long n = (long long) value;
-//    long long bign  = NSSwapHostLongLongToBig(n);
-//    return [NSData dataWithBytes:&bign length:8];
-//}
-
-//static NSUInteger integerFromData(NSData* data) {
-//    long long bign;
-//    [data getBytes:&bign range:NSMakeRange(0, 8)];
-//    long long n = NSSwapBigLongLongToHost(bign);
-//    return (NSUInteger) n;
-//}
 
 static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
@@ -187,18 +175,16 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     int offset  = DATA_OFFSET;
     while ((offset+16) <= [self.aof pageSize]) {
-        uint64_t big_offset = 0;
         NSData* type    = [data subdataWithRange:NSMakeRange(offset, 4)];
         if (!memcmp(type.bytes, "\0\0\0\0", 4)) {
             break;
         }
         NSData* name    = [data subdataWithRange:NSMakeRange(offset+4, 4)];
-        [data getBytes:&big_offset range:NSMakeRange(offset+8, 8)];
+        uint64_t pageID     = (uint64_t)[data gtw_integerFromBigLongLongRange:NSMakeRange(offset+8, 8)];
         offset  += 16;
         
         NSString* typeName  = [[NSString alloc] initWithData:type encoding:NSUTF8StringEncoding];
         NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
-        uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
         if ([typeName isEqualToString:@"INDX"]) {
             if ([order rangeOfString:@"^([SPOG]{4})$" options:NSRegularExpressionSearch].location == 0) {
                 _indexes[order]  = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
@@ -214,9 +200,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             _btreeID2Term   = [[GTWAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
             NSData* value           = [_btreeID2Term objectForKey:token];
-            uint64_t bignext;
-            [value getBytes:&bignext length:8];
-            NSInteger nextID    = (NSInteger)NSSwapBigLongLongToHost(bignext);
+            NSInteger nextID     = (NSInteger)[value gtw_integerFromBigLongLong];
             _gen.nextID         = nextID;
         } else if ([typeName isEqualToString:@"DICT"]) {
 //            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);
@@ -234,10 +218,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 - (NSInteger) previousPageID {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_prev = 0;
-    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
-    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
+    NSUInteger prev     = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
     return (NSInteger) prev;
 }
 
@@ -255,10 +236,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 - (NSDate*) lastModified {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts     = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
@@ -315,11 +293,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     NSData* pageData    = [_btreeID2Term objectForKey:idData];
 //    NSLog(@"data for node %@ is on page %@", idData, pageData);
-
-    uint64_t big_pid = 0;
-    [pageData getBytes:&big_pid range:NSMakeRange(0, 8)];
-    unsigned long long pid = NSSwapBigLongLongToHost((unsigned long long) big_pid);
-    NSInteger pageID    = (NSInteger) pid;
+    NSInteger pageID    = (NSInteger)[pageData gtw_integerFromBigLongLong];
+    
     GTWAOFRawDictionary* d  = [GTWAOFRawDictionary rawDictionaryWithPageID:pageID fromAOF:self.aof];
     if (!d) {
         NSLog(@"Bad dictionary page %lld for term ID %@", (long long)pageID, idData);
@@ -371,10 +346,9 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
         NSMutableArray* pairs           = [NSMutableArray array];
         NSDictionary* pageMap    = [dictPageMap copy];
         [_btreeID2Term enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-            uint64_t big_pid = 0;
-            [obj getBytes:&big_pid range:NSMakeRange(0, 8)];
-            unsigned long long pid = NSSwapBigLongLongToHost((unsigned long long) big_pid);
+            unsigned long long pid = (unsigned long long)[obj gtw_integerFromBigLongLong];
             NSInteger oldPageID    = (NSInteger) pid;
+            
             NSNumber* newPageNumber = pageMap[@(oldPageID)];
             NSInteger newPageID;
             if (newPageNumber) {
@@ -386,9 +360,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             }
             
 //            NSLog(@"Remapping dictionary page %lld -> %lld", (long long)oldPageID, (long long)newPageID);
-            pid     = (int64_t) newPageID;
-            big_pid  = NSSwapHostLongLongToBig(pid);
-            NSData* value   = [NSData dataWithBytes:&big_pid length:8];
+            NSData* value   = [NSData gtw_bigLongLongDataWithInteger:newPageID];
             [pairs addObject:@[key, value]];
         }];
         NSEnumerator* e = [pairs objectEnumerator];
@@ -829,18 +801,16 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     
     int offset  = DATA_OFFSET;
     while ((offset+16) <= [self.aof pageSize]) {
-        uint64_t big_offset = 0;
         NSData* type    = [data subdataWithRange:NSMakeRange(offset, 4)];
         if (!memcmp(type.bytes, "\0\0\0\0", 4)) {
             break;
         }
         NSData* name    = [data subdataWithRange:NSMakeRange(offset+4, 4)];
-        [data getBytes:&big_offset range:NSMakeRange(offset+8, 8)];
+        uint64_t pageID = (uint64_t)[data gtw_integerFromBigLongLongRange:NSMakeRange(offset+8, 8)];
         offset  += 16;
         
         NSString* typeName  = [[NSString alloc] initWithData:type encoding:NSUTF8StringEncoding];
         NSString* order     = [[NSString alloc] initWithData:name encoding:NSUTF8StringEncoding];
-        uint64_t pageID     = NSSwapBigLongLongToHost(big_offset);
         if ([typeName isEqualToString:@"INDX"]) {
             if ([order rangeOfString:@"^([SPOG]{4})$" options:NSRegularExpressionSearch].location == 0) {
                 _indexes[order]  = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
@@ -857,9 +827,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             self.mutableBtreeID2Term   = [[GTWMutableAOFBTree alloc] initWithRootPageID:pageID fromAOF:self.aof];
             NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
             NSData* value           = [_btreeID2Term objectForKey:token];
-            uint64_t bignext;
-            [value getBytes:&bignext length:8];
-            NSInteger nextID    = (NSInteger)NSSwapBigLongLongToHost(bignext);
+            NSInteger nextID    = (NSInteger)[value gtw_integerFromBigLongLong];
             _gen.nextID         = nextID;
         } else if ([typeName isEqualToString:@"DICT"]) {
 //            NSLog(@"Found Raw Dictionary index at page %llu", (unsigned long long)pageID);

@@ -289,9 +289,7 @@ int main(int argc, const char * argv[]) {
                 NSString* k = [[NSString alloc] initWithData:key encoding:NSUTF8StringEncoding];
                 NSString* value;
                 if ([key length] == 8) {
-                    long long bign;
-                    [obj getBytes:&bign range:NSMakeRange(0, 8)];
-                    long long v = NSSwapBigLongLongToHost(bign);
+                    long long v = (long long)[obj gtw_integerFromBigLongLong];
                     value       = [NSString stringWithFormat:@"%6lld", v];
                 } else {
                     value       = [obj description];
@@ -324,9 +322,7 @@ int main(int argc, const char * argv[]) {
                 NSMutableArray* tuple   = [NSMutableArray array];
                 int j;
                 for (j = 0; j < 4; j++) {
-                    long long bign;
-                    [data getBytes:&bign range:NSMakeRange((8*j), 8)];
-                    long long n = NSSwapBigLongLongToHost(bign);
+                    long long n = (long long)[data gtw_integerFromBigLongLongRange:NSMakeRange((8*j), 8)];
                     NSString* s = [NSString stringWithFormat:@"%lld", n];
                     [tuple addObject:s];
                 }

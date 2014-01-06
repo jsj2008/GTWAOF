@@ -7,6 +7,7 @@
 //
 
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+#import "NSData+GTWCompare.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -18,18 +19,11 @@
     return [data subdataWithRange:NSMakeRange(0, 4)];
 }
 - (NSInteger) previousPageID {
-    NSData* data    = self.data;
-    uint64_t big_prev = 0;
-    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
-    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
-    return (NSInteger) prev;
+    return (NSInteger)[self.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
 }
 
 - (NSDate*) lastModified {
-    NSData* data    = self.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts   = [self.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 

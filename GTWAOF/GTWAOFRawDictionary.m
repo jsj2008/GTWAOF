@@ -18,6 +18,7 @@
 #import "GTWAOFRawValue.h"
 #import "GZIP.h"
 #import "GTWAOFPage+GTWAOFLinkedPage.h"
+#import "NSData+GTWCompare.h"
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -154,11 +155,8 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 - (NSInteger) previousPageID {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_prev = 0;
-    [data getBytes:&big_prev range:NSMakeRange(PREV_OFFSET, 8)];
-    unsigned long long prev = NSSwapBigLongLongToHost((unsigned long long) big_prev);
-    return (NSInteger) prev;
+    NSUInteger prev = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(PREV_OFFSET, 8)];
+    return (NSInteger)prev;
 }
 
 - (GTWAOFPage*) head {
@@ -167,20 +165,14 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 - (NSDate*) lastModified {
     GTWAOFPage* p   = _head;
-    NSData* data    = p.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
 - (NSUInteger) count {
     GTWAOFPage* p       = _head;
-    NSData* data        = p.data;
-    uint64_t big_count  = 0;
-    [data getBytes:&big_count range:NSMakeRange(COUNT_OFFSET, 8)];
-    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
-    return (NSUInteger) count;
+    NSUInteger count = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(COUNT_OFFSET, 8)];
+    return count;
 }
 
 - (NSEnumerator*) keyEnumerator {
@@ -319,10 +311,8 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
                 NSLog(@"Unexpected page ID length (%"PRIu32") when looking for extended page", klen);
                 break;
             }
-            uint64_t big_pageID = 0;
-            [data getBytes:&big_pageID range:NSMakeRange(offset, klen)];
-            offset  += klen;
-            unsigned long long pageID = NSSwapBigLongLongToHost((unsigned long long) big_pageID);
+            unsigned long long pageID   = (unsigned long long) [data gtw_integerFromBigLongLongRange:NSMakeRange(offset, klen)];
+            
 //            NSLog(@"found extended page dictionary pair (on page %llu)", (unsigned long long)pageID);
             GTWAOFRawValue* v   = [GTWAOFRawValue rawValueWithPageID:pageID fromAOF:aof];
             NSData* pair        = [v data];

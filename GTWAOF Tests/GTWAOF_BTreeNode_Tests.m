@@ -24,12 +24,7 @@
 #import "GTWAOFRawValue.h"
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
-
-static NSData* dataFromInteger(NSUInteger value) {
-    long long n = (long long) value;
-    long long bign  = NSSwapHostLongLongToBig(n);
-    return [NSData dataWithBytes:&bign length:8];
-}
+#import "NSData+GTWCompare.h"
 
 static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInteger d) {
     NSMutableData* data = [NSMutableData dataWithLength:32];
@@ -42,13 +37,6 @@ static NSData* dataFromIntegers(NSUInteger a, NSUInteger b, NSUInteger c, NSUInt
     [data replaceBytesInRange:NSMakeRange(16, 8) withBytes:&bigc];
     [data replaceBytesInRange:NSMakeRange(24, 8) withBytes:&bigd];
     return data;
-}
-
-static NSUInteger integerFromData(NSData* data) {
-    long long bign;
-    [data getBytes:&bign range:NSMakeRange(0, 8)];
-    long long n = NSSwapBigLongLongToHost(bign);
-    return (NSUInteger) n;
 }
 
 @interface GTWAOF_Tests : XCTestCase {
@@ -233,7 +221,7 @@ static NSUInteger integerFromData(NSData* data) {
         for (NSNumber* number in pageNumbers) {
             NSUInteger value    = [number unsignedIntegerValue];
             //            NSLog(@"adding value -> %lld", (long long)value);
-            NSData* keyIntData  = dataFromInteger(value);
+            NSData* keyIntData  = [NSData gtw_bigLongLongDataWithInteger:value];
             NSData* keyData     = [keyIntData subdataWithRange:NSMakeRange(6, 2)];
             [keys addObject:keyData];
             NSData* object   = [NSData dataWithBytes:"\x00\x00\xFF" length:3];
@@ -259,7 +247,7 @@ static NSUInteger integerFromData(NSData* data) {
 //            NSLog(@"[%d] %@ -> %@", (int)count, key, obj);
             NSMutableData* k    = [NSMutableData dataWithLength:8];
             [k replaceBytesInRange:NSMakeRange(6, 2) withBytes:key.bytes];
-            NSUInteger value    = integerFromData(k);
+            NSUInteger value    = [k gtw_integerFromBigLongLong];
             [set addIndex:value];
             count++;
         }];
@@ -291,7 +279,7 @@ static NSUInteger integerFromData(NSData* data) {
         for (NSNumber* number in pageNumbers) {
             NSUInteger value    = [number unsignedIntegerValue];
             //            NSLog(@"adding value -> %lld", (long long)value);
-            NSData* keyIntData  = dataFromInteger(value);
+            NSData* keyIntData  = [NSData gtw_bigLongLongDataWithInteger:value];
             NSData* keyData     = [keyIntData subdataWithRange:NSMakeRange(6, 2)];
             [keys addObject:keyData];
             NSData* object   = [NSData data];
@@ -317,7 +305,7 @@ static NSUInteger integerFromData(NSData* data) {
 //            NSLog(@"[%d] %@ -> %@", (int)count, key, obj);
             NSMutableData* k    = [NSMutableData dataWithLength:8];
             [k replaceBytesInRange:NSMakeRange(6, 2) withBytes:key.bytes];
-            NSUInteger value    = integerFromData(k);
+            NSUInteger value    = [k gtw_integerFromBigLongLong];
             [set addIndex:value];
             count++;
         }];

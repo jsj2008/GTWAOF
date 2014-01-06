@@ -22,20 +22,6 @@
 #define VAL_LENGTH                  8
 #define OFFSET_LENGTH               8
 
-static NSData* dataFromInteger(NSUInteger value) {
-    long long n = (long long) value;
-    long long bign  = NSSwapHostLongLongToBig(n);
-    return [NSData dataWithBytes:&bign length:8];
-}
-
-static inline NSUInteger integerFromData(NSData* data) {
-    long long bign;
-    [data getBytes:&bign range:NSMakeRange(0, 8)];
-    long long n = NSSwapBigLongLongToHost(bign);
-    return (NSUInteger) n;
-}
-
-
 @implementation GTWAOFBTreeNode
 
 + (GTWAOFBTreeNode*) nodeWithPageID:(NSInteger)pageID parent:(GTWAOFBTreeNode*)parent fromAOF:(id<GTWAOF,GTWMutableAOF>)aof {
@@ -202,14 +188,14 @@ static inline NSUInteger integerFromData(NSData* data) {
                 offset      += ksize;
                 NSData* val = [data subdataWithRange:NSMakeRange(offset, OFFSET_LENGTH)];
                 offset      += OFFSET_LENGTH;
-                NSUInteger pageID   = integerFromData(val);
+                NSUInteger pageID   = [val gtw_integerFromBigLongLong];
                 NSNumber* number    = [NSNumber numberWithInteger:pageID];
                 [keys addObject:key];
                 [pageIDs addObject:number];
             }
             {
                 NSData* val = [data subdataWithRange:NSMakeRange(offset, OFFSET_LENGTH)];
-                NSUInteger pageID   = integerFromData(val);
+                NSUInteger pageID   = [val gtw_integerFromBigLongLong];
                 NSNumber* number    = [NSNumber numberWithInteger:pageID];
                 [pageIDs addObject:number];
             }
@@ -261,28 +247,19 @@ static inline NSUInteger integerFromData(NSData* data) {
 
 - (NSDate*) lastModified {
     GTWAOFPage* p   = _page;
-    NSData* data    = p.data;
-    uint64_t big_ts = 0;
-    [data getBytes:&big_ts range:NSMakeRange(TS_OFFSET, 8)];
-    unsigned long long ts = NSSwapBigLongLongToHost((unsigned long long) big_ts);
+    NSUInteger ts   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(TS_OFFSET, 8)];
     return [NSDate dateWithTimeIntervalSince1970:(double)ts];
 }
 
 - (NSUInteger) nodeItemCount {
     GTWAOFPage* p       = _page;
-    NSData* data        = p.data;
-    uint64_t big_count  = 0;
-    [data getBytes:&big_count range:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8)];
-    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
-    return (NSUInteger) count;
+    NSUInteger count   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8)];
+    return count;
 }
 
 - (NSUInteger) subTreeItemCount {
     GTWAOFPage* p       = _page;
-    NSData* data        = p.data;
-    uint64_t big_count  = 0;
-    [data getBytes:&big_count range:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8)];
-    unsigned long long count = NSSwapBigLongLongToHost((unsigned long long) big_count);
+    NSUInteger count   = [p.data gtw_integerFromBigLongLongRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8)];
     return (NSUInteger) count;
 }
 
@@ -690,7 +667,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     for (i = 0; i < count; i++) {
         NSData* k   = keys[i];
         NSNumber* number    = childrenPageIDs[i];
-        NSData* v   = dataFromInteger([number integerValue]);
+        NSData* v   = [NSData gtw_bigLongLongDataWithInteger:[number integerValue]];
         if (verbose) {
             NSLog(@"handling key-value %@=%@", k, v);
         }
@@ -715,7 +692,7 @@ static inline NSUInteger integerFromData(NSData* data) {
     
     {
         NSNumber* number    = childrenPageIDs[count];
-        NSData* v   = dataFromInteger([number integerValue]);
+        NSData* v   = [NSData gtw_bigLongLongDataWithInteger:[number integerValue]];
 //        NSLog(@"handling last-value %@", v);
         [data replaceBytesInRange:NSMakeRange(offset, OFFSET_LENGTH) withBytes:[v bytes]];
         offset  += OFFSET_LENGTH;

@@ -11,19 +11,7 @@
 #import "GTWAOFBTree.h"
 #import "GTWAOFDirectFile.h"
 #import "GTWAOFMemory.h"
-
-static NSData* dataFromInteger(NSUInteger value) {
-    long long n = (long long) value;
-    long long bign  = NSSwapHostLongLongToBig(n);
-    return [NSData dataWithBytes:&bign length:8];
-}
-
-static NSUInteger integerFromData(NSData* data) {
-    long long bign;
-    [data getBytes:&bign range:NSMakeRange(0, 8)];
-    long long n = NSSwapBigLongLongToHost(bign);
-    return (NSUInteger) n;
-}
+#import "NSData+GTWCompare.h"
 
 @interface GTWAOF_BTree_Tests : XCTestCase {
     id<GTWAOF,GTWMutableAOF> _aof;
@@ -57,8 +45,8 @@ static NSUInteger integerFromData(NSData* data) {
     NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
     NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
     [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSInteger k = integerFromData(key);
-        NSInteger v = integerFromData(obj);
+        NSInteger k = [key gtw_integerFromBigLongLong];
+        NSInteger v = [obj gtw_integerFromBigLongLong];
         [keyset addIndex:k];
         [valset addIndex:v];
     }];
@@ -82,8 +70,8 @@ static NSUInteger integerFromData(NSData* data) {
     NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
     NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
     [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSInteger k = integerFromData(key);
-        NSInteger v = integerFromData(obj);
+        NSInteger k = [key gtw_integerFromBigLongLong];
+        NSInteger v = [obj gtw_integerFromBigLongLong];
         [keyset addIndex:k];
         [valset addIndex:v];
     }];
@@ -108,8 +96,8 @@ static NSUInteger integerFromData(NSData* data) {
     NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
     NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
     [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSInteger k = integerFromData(key);
-        NSInteger v = integerFromData(obj);
+        NSInteger k = [key gtw_integerFromBigLongLong];
+        NSInteger v = [obj gtw_integerFromBigLongLong];
         [keyset addIndex:k];
         [valset addIndex:v];
     }];
@@ -133,8 +121,8 @@ static NSUInteger integerFromData(NSData* data) {
     NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
     NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
     [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        NSInteger k = integerFromData(key);
-        NSInteger v = integerFromData(obj);
+        NSInteger k = [key gtw_integerFromBigLongLong];
+        NSInteger v = [obj gtw_integerFromBigLongLong];
         [keyset addIndex:k];
         [valset addIndex:v];
     }];
@@ -159,8 +147,8 @@ static NSUInteger integerFromData(NSData* data) {
         NSMutableIndexSet* keyset = [NSMutableIndexSet indexSet];
         NSMutableIndexSet* valset = [NSMutableIndexSet indexSet];
         [_btree enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-            NSInteger k = integerFromData(key);
-            NSInteger v = integerFromData(obj);
+            NSInteger k = [key gtw_integerFromBigLongLong];
+            NSInteger v = [obj gtw_integerFromBigLongLong];
             [keyset addIndex:k];
             [valset addIndex:v];
         }];
@@ -181,7 +169,7 @@ static NSUInteger integerFromData(NSData* data) {
 - (void) insertDoublesRange:(NSRange)range {
     [_aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
         for (NSInteger k = range.location; k < (range.location+range.length); k++) {
-            [_btree insertValue:dataFromInteger(k*2) forKey:dataFromInteger(k) updateContext:ctx];
+            [_btree insertValue:[NSData gtw_bigLongLongDataWithInteger:k*2] forKey:[NSData gtw_bigLongLongDataWithInteger:k] updateContext:ctx];
         }
         return YES;
     }];
