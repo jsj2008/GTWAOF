@@ -1025,9 +1025,9 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
             for (NSData* key in keyOrderQuadDataDicts[keyOrder]) {
                 NSData* value   = keyOrderQuadDataDicts[keyOrder][key];
                 BOOL ok = [index insertValue:value forKey:key updateContext:ctx];
-                if (!ok) {
-                    NSLog(@"******** Duplicate insert? %@", key);
-                }
+//                if (!ok) {
+//                    NSLog(@"******** Duplicate insert? %@", key);
+//                }
                 if ([keyOrder isEqualToString:@"SPOG"]) {
                     if (ok) {
                         insertedCount++;
