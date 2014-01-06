@@ -61,6 +61,30 @@
 		37BE5ADB187119BE0030A293 /* GTWAOFPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 37BE5ADA187119BE0030A293 /* GTWAOFPlugin.m */; };
 		37BE5ADC187119BE0030A293 /* GTWAOFPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 37BE5ADA187119BE0030A293 /* GTWAOFPlugin.m */; };
 		37BE5ADD187119BE0030A293 /* GTWAOFPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 37BE5ADA187119BE0030A293 /* GTWAOFPlugin.m */; };
+		37F18DED187B1664007A2FD3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37FEA4BB18640B4600A0BCC2 /* Foundation.framework */; };
+		37F18DF9187B1680007A2FD3 /* gtwaofutil.m in Sources */ = {isa = PBXBuildFile; fileRef = 37F18DF8187B1680007A2FD3 /* gtwaofutil.m */; };
+		37F18DFA187B169B007A2FD3 /* GTWAOFPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 37BE5ADA187119BE0030A293 /* GTWAOFPlugin.m */; };
+		37F18DFB187B169B007A2FD3 /* GTWAOFQuadStore.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E94185682D20085556E /* GTWAOFQuadStore.m */; };
+		37F18DFC187B169B007A2FD3 /* GTWTermIDGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E8B186F7DFE004C5C1B /* GTWTermIDGenerator.m */; };
+		37F18DFD187B169B007A2FD3 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 378627271856C34900CDC8A6 /* GTWAOFPage+GTWAOFLinkedPage.m */; };
+		37F18DFE187B169B007A2FD3 /* GTWAOFUpdateContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E6C18552F6D0085556E /* GTWAOFUpdateContext.m */; };
+		37F18DFF187B169B007A2FD3 /* GTWAOFDirectFile.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E691855177C0085556E /* GTWAOFDirectFile.m */; };
+		37F18E00187B169B007A2FD3 /* GTWAOFMemoryMappedFile.m in Sources */ = {isa = PBXBuildFile; fileRef = 3757472B1874E060004265E7 /* GTWAOFMemoryMappedFile.m */; };
+		37F18E01187B169B007A2FD3 /* GTWAOFMemory.m in Sources */ = {isa = PBXBuildFile; fileRef = 37528E81186F75A2004C5C1B /* GTWAOFMemory.m */; };
+		37F18E02187B169B007A2FD3 /* GTWAOFPage.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E66185515C10085556E /* GTWAOFPage.m */; };
+		37F18E03187B169B007A2FD3 /* GTWAOFRawQuads.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E9018564EE80085556E /* GTWAOFRawQuads.m */; };
+		37F18E04187B169B007A2FD3 /* GTWAOFRawDictionary.m in Sources */ = {isa = PBXBuildFile; fileRef = 37527E80185584270085556E /* GTWAOFRawDictionary.m */; };
+		37F18E05187B169B007A2FD3 /* GTWAOFRawValue.m in Sources */ = {isa = PBXBuildFile; fileRef = 370F1301185F75BA00810F2F /* GTWAOFRawValue.m */; };
+		37F18E06187B169B007A2FD3 /* GZIP.m in Sources */ = {isa = PBXBuildFile; fileRef = 375A71B7185D6FA40060C151 /* GZIP.m */; };
+		37F18E07187B169B007A2FD3 /* NSData+GTWCompare.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DE186371A800F1CE1E /* NSData+GTWCompare.m */; };
+		37F18E08187B169B007A2FD3 /* NSIndexSet+GTWIndexRange.m in Sources */ = {isa = PBXBuildFile; fileRef = 37708888186E5231003EC518 /* NSIndexSet+GTWIndexRange.m */; };
+		37F18E09187B169B007A2FD3 /* NSData+GTWTerm.m in Sources */ = {isa = PBXBuildFile; fileRef = 3770888D186E6B07003EC518 /* NSData+GTWTerm.m */; };
+		37F18E0A187B169B007A2FD3 /* GTWAOFBTreeNode.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76DA18626A8100F1CE1E /* GTWAOFBTreeNode.m */; };
+		37F18E0B187B169B007A2FD3 /* GTWAOFBTree.m in Sources */ = {isa = PBXBuildFile; fileRef = 375B76E21863A9B200F1CE1E /* GTWAOFBTree.m */; };
+		37F18E0C187B16A5007A2FD3 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E8A18564C2A0085556E /* libz.dylib */; };
+		37F18E0D187B16A5007A2FD3 /* GTWSWBase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E60185510F20085556E /* GTWSWBase.framework */; };
+		37F18E0E187B16A5007A2FD3 /* SPARQLKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E61185510F20085556E /* SPARQLKit.framework */; };
+		37F18E0F187B16A5007A2FD3 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37527E52185510CC0085556E /* CoreFoundation.framework */; };
 		37FEA49C186407F800A0BCC2 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37FEA49B186407F800A0BCC2 /* XCTest.framework */; };
 		37FEA4A2186407F800A0BCC2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 37FEA4A0186407F800A0BCC2 /* InfoPlist.strings */; };
 		37FEA4A4186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 37FEA4A3186407F800A0BCC2 /* GTWAOF_BTreeNode_Tests.m */; };
@@ -85,6 +109,15 @@
 
 /* Begin PBXCopyFilesBuildPhase section */
 		37527E7018553F5B0085556E /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		37F18DEA187B1664007A2FD3 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -147,6 +180,9 @@
 		37BE5AC0187116CC0030A293 /* GTWAOF-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "GTWAOF-Prefix.pch"; sourceTree = "<group>"; };
 		37BE5AD9187119BE0030A293 /* GTWAOFPlugin.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTWAOFPlugin.h; sourceTree = "<group>"; };
 		37BE5ADA187119BE0030A293 /* GTWAOFPlugin.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTWAOFPlugin.m; sourceTree = "<group>"; };
+		37F18DEC187B1664007A2FD3 /* gtwaofutil */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = gtwaofutil; sourceTree = BUILT_PRODUCTS_DIR; };
+		37F18DF2187B1664007A2FD3 /* gtwaofutil-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "gtwaofutil-Prefix.pch"; path = "../gtwaofutil/gtwaofutil-Prefix.pch"; sourceTree = "<group>"; };
+		37F18DF8187B1680007A2FD3 /* gtwaofutil.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = gtwaofutil.m; path = GTWAOF/gtwaofutil.m; sourceTree = SOURCE_ROOT; };
 		37FEA49A186407F800A0BCC2 /* GTWAOF Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "GTWAOF Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		37FEA49B186407F800A0BCC2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		37FEA49F186407F800A0BCC2 /* GTWAOF Tests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GTWAOF Tests-Info.plist"; sourceTree = "<group>"; };
@@ -177,6 +213,18 @@
 				37BE5AC6187117320030A293 /* GTWSWBase.framework in Frameworks */,
 				37BE5AC7187117320030A293 /* SPARQLKit.framework in Frameworks */,
 				37BE5AB9187116CC0030A293 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37F18DE9187B1664007A2FD3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37F18DED187B1664007A2FD3 /* Foundation.framework in Frameworks */,
+				37F18E0C187B16A5007A2FD3 /* libz.dylib in Frameworks */,
+				37F18E0D187B16A5007A2FD3 /* GTWSWBase.framework in Frameworks */,
+				37F18E0E187B16A5007A2FD3 /* SPARQLKit.framework in Frameworks */,
+				37F18E0F187B16A5007A2FD3 /* CoreFoundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -214,6 +262,7 @@
 				37527E7218553F5B0085556E /* gtwaof */,
 				37FEA49A186407F800A0BCC2 /* GTWAOF Tests.xctest */,
 				37BE5AB8187116CC0030A293 /* GTWAOFQuadStore.plugin */,
+				37F18DEC187B1664007A2FD3 /* gtwaofutil */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -266,6 +315,7 @@
 			isa = PBXGroup;
 			children = (
 				37527E8318558CE20085556E /* gtwaof.m */,
+				37F18DF8187B1680007A2FD3 /* gtwaofutil.m */,
 			);
 			path = gtwaof;
 			sourceTree = "<group>";
@@ -376,6 +426,7 @@
 				37FEA49F186407F800A0BCC2 /* GTWAOF Tests-Info.plist */,
 				37FEA4A0186407F800A0BCC2 /* InfoPlist.strings */,
 				37FEA4A5186407F800A0BCC2 /* GTWAOF Tests-Prefix.pch */,
+				37F18DF2187B1664007A2FD3 /* gtwaofutil-Prefix.pch */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -416,6 +467,23 @@
 			productName = GTWAOF;
 			productReference = 37BE5AB8187116CC0030A293 /* GTWAOFQuadStore.plugin */;
 			productType = "com.apple.product-type.bundle";
+		};
+		37F18DEB187B1664007A2FD3 /* gtwaofutil */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 37F18DF7187B1664007A2FD3 /* Build configuration list for PBXNativeTarget "gtwaofutil" */;
+			buildPhases = (
+				37F18DE8187B1664007A2FD3 /* Sources */,
+				37F18DE9187B1664007A2FD3 /* Frameworks */,
+				37F18DEA187B1664007A2FD3 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = gtwaofutil;
+			productName = gtwaofutil;
+			productReference = 37F18DEC187B1664007A2FD3 /* gtwaofutil */;
+			productType = "com.apple.product-type.tool";
 		};
 		37FEA499186407F800A0BCC2 /* GTWAOF Tests */ = {
 			isa = PBXNativeTarget;
@@ -463,6 +531,7 @@
 				37527E7118553F5B0085556E /* gtwaof */,
 				37FEA499186407F800A0BCC2 /* GTWAOF Tests */,
 				37BE5AB7187116CC0030A293 /* GTWAOFQuadStore */,
+				37F18DEB187B1664007A2FD3 /* gtwaofutil */,
 			);
 		};
 /* End PBXProject section */
@@ -535,6 +604,32 @@
 				37BE5ADD187119BE0030A293 /* GTWAOFPlugin.m in Sources */,
 				37BE5AD71871174D0030A293 /* GTWAOFBTreeNode.m in Sources */,
 				37BE5AD81871174D0030A293 /* GTWAOFBTree.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		37F18DE8187B1664007A2FD3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37F18DFA187B169B007A2FD3 /* GTWAOFPlugin.m in Sources */,
+				37F18DFB187B169B007A2FD3 /* GTWAOFQuadStore.m in Sources */,
+				37F18DFC187B169B007A2FD3 /* GTWTermIDGenerator.m in Sources */,
+				37F18DFD187B169B007A2FD3 /* GTWAOFPage+GTWAOFLinkedPage.m in Sources */,
+				37F18DFE187B169B007A2FD3 /* GTWAOFUpdateContext.m in Sources */,
+				37F18DFF187B169B007A2FD3 /* GTWAOFDirectFile.m in Sources */,
+				37F18E00187B169B007A2FD3 /* GTWAOFMemoryMappedFile.m in Sources */,
+				37F18E01187B169B007A2FD3 /* GTWAOFMemory.m in Sources */,
+				37F18E02187B169B007A2FD3 /* GTWAOFPage.m in Sources */,
+				37F18E03187B169B007A2FD3 /* GTWAOFRawQuads.m in Sources */,
+				37F18E04187B169B007A2FD3 /* GTWAOFRawDictionary.m in Sources */,
+				37F18E05187B169B007A2FD3 /* GTWAOFRawValue.m in Sources */,
+				37F18E06187B169B007A2FD3 /* GZIP.m in Sources */,
+				37F18E07187B169B007A2FD3 /* NSData+GTWCompare.m in Sources */,
+				37F18E08187B169B007A2FD3 /* NSIndexSet+GTWIndexRange.m in Sources */,
+				37F18E09187B169B007A2FD3 /* NSData+GTWTerm.m in Sources */,
+				37F18E0A187B169B007A2FD3 /* GTWAOFBTreeNode.m in Sources */,
+				37F18E0B187B169B007A2FD3 /* GTWAOFBTree.m in Sources */,
+				37F18DF9187B1680007A2FD3 /* gtwaofutil.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -768,6 +863,38 @@
 			};
 			name = Release;
 		};
+		37F18DF5187B1664007A2FD3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(USER_LIBRARY_DIR)/Frameworks",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "gtwaofutil/gtwaofutil-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		37F18DF6187B1664007A2FD3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(USER_LIBRARY_DIR)/Frameworks",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "gtwaofutil/gtwaofutil-Prefix.pch";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		37FEA4A8186407F800A0BCC2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -855,6 +982,14 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
+		};
+		37F18DF7187B1664007A2FD3 /* Build configuration list for PBXNativeTarget "gtwaofutil" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				37F18DF5187B1664007A2FD3 /* Debug */,
+				37F18DF6187B1664007A2FD3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 		37FEA4AA186407F800A0BCC2 /* Build configuration list for PBXNativeTarget "GTWAOF Tests" */ = {
 			isa = XCConfigurationList;
