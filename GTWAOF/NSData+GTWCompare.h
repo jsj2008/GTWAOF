@@ -14,4 +14,7 @@
 - (NSComparisonResult) gtw_trucatedCompare:(NSData*)aData;
 - (BOOL) gtw_hasPrefix:(NSData*)data;
 
+- (NSUInteger) integerFromHostLongLong;
++ (NSData*) bigLongLongDataWithInteger:(NSUInteger)value;
+
 @end

@@ -61,4 +61,17 @@
     }
 }
 
+- (NSUInteger) integerFromHostLongLong {
+    long long bign;
+    [self getBytes:&bign range:NSMakeRange(0, 8)];
+    long long n = NSSwapBigLongLongToHost(bign);
+    return (NSUInteger) n;
+}
+
++ (NSData*) bigLongLongDataWithInteger:(NSUInteger)value {
+    long long n = (long long) value;
+    long long bign  = NSSwapHostLongLongToBig(n);
+    return [NSData dataWithBytes:&bign length:8];
+}
+
 @end
