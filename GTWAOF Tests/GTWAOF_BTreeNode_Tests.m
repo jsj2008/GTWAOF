@@ -21,7 +21,6 @@
 #import <GTWSWBase/GTWQuad.h>
 #import <SPARQLKit/SPKNTriplesSerializer.h>
 #import "GTWAOFQuadStore.h"
-#import "GTWAOFPage+GTWAOFLinkedPage.h"
 #import "GTWAOFRawValue.h"
 #import "GTWAOFBTreeNode.h"
 #import "GTWAOFBTree.h"
