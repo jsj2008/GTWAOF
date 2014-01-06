@@ -329,15 +329,8 @@ static node_subtype_t node_subtype ( NSData* data ) {
         } else if (subtype == NODE_SUBTYPE_LITERAL) {
             // xsd:string
             return [self unpack_string:ident];
-//        } else if (subtype == NODE_SUBTYPE_DATE) {
-//            uint16_t year	= inlined_datetime_year( id );
-//            uint16_t month	= inlined_datetime_month( id );
-//            uint16_t day	= inlined_datetime_day( id );
-//            char* value		= malloc(11);
-//            snprintf( value, 11, "%04"PRIu16"-%02"PRIu16"-%02"PRIu16"", year, month, day );
-//            gtw_term* term	= gtw_new_term(type, value, NULL, "http://www.w3.org/2001/XMLSchema#date");
-//            free(value);
-//            return term;
+        } else if (subtype == NODE_SUBTYPE_DATE) {
+            return [self unpack_date:ident];
 //        } else if (subtype == NODE_SUBTYPE_DATETIME) {
 //            uint16_t year	= inlined_datetime_year( id );
 //            uint16_t month	= inlined_datetime_month( id );
@@ -519,6 +512,45 @@ static node_subtype_t node_subtype ( NSData* data ) {
     return l;
 }
 
+static uint16_t inlined_datetime_year ( uint64_t idvalue ) {
+    char* ip    = (char*)&idvalue;
+	ip[0]		= 0x0;
+	ip[1]		&= 0x01;
+	ip[4]		&= 0xF8;
+	ip[5]		= 0x0;
+	ip[6]		= 0x0;
+	ip[7]		= 0x0;
+	uint64_t sum	= NSSwapBigLongLongToHost(idvalue);
+	sum			>>= 36;
+	return (uint16_t) sum;
+}
+
+static uint16_t inlined_datetime_month ( uint64_t idvalue ) {
+    char* ip    = (char*)&idvalue;
+	char month	= ip[3];
+	month		&= 0x0F;
+	return (uint16_t) month;
+}
+
+static uint16_t inlined_datetime_day ( uint64_t idvalue ) {
+    char* ip    = (char*)&idvalue;
+	unsigned char day	= ip[4];
+	day				>>= 3;
+	return day;
+}
+
+- (GTWLiteral*) unpack_date:(NSData*)ident {
+    uint64_t idvalue;
+    [ident getBytes:&idvalue length:8];
+    
+    uint16_t year	= inlined_datetime_year( idvalue );
+    uint16_t month	= inlined_datetime_month( idvalue );
+    uint16_t day	= inlined_datetime_day( idvalue );
+    
+//    NSLog(@"Unpacked date %04"PRIu16"-%02"PRIu16"-%02"PRIu16"", year, month, day);
+    return [[GTWLiteral alloc] initWithValue:[NSString stringWithFormat:@"%04"PRIu16"-%02"PRIu16"-%02"PRIu16"", year, month, day] datatype:@"http://www.w3.org/2001/XMLSchema#date"];
+}
+
 #pragma mark -
 
 - (NSData*) pack_resource:(NSString*) value {
@@ -671,7 +703,36 @@ static node_subtype_t node_subtype ( NSData* data ) {
 }
 
 - (NSData*) pack_date:(NSString*) value {
-    // TODO: implement
+    NSRange range   = [value rangeOfString:@"^(\\d{4})-(\\d\\d)-(\\d\\d)$" options:NSRegularExpressionSearch];
+    if (range.location == 0 && range.length == value.length) {
+        NSInteger year  = [[value substringWithRange:NSMakeRange(0, 4)] integerValue];
+        NSInteger month = [[value substringWithRange:NSMakeRange(5, 2)] integerValue];
+        NSInteger day   = [[value substringWithRange:NSMakeRange(8, 2)] integerValue];
+        if (year < 0 || year >= 8000)
+            return nil;
+        
+        if (month < 1 || month > 12)
+            return nil;
+        
+        if (day < 1 || day > 31)
+            return nil;
+        
+        uint64_t idvalue  = 0;
+        char* ip    = (char*)&idvalue;
+        ip[0]		= NODE_TYPE_DATATYPE;
+        ip[0]		|= 0x01;
+        ip[0]		<<= 4;
+        ip[0]		|= NODE_SUBTYPE_DATE;
+        uint64_t syear	= (year << 36);
+        uint64_t smonth	= (month << 32);
+        uint64_t sday	= (day << 27);
+        uint64_t sum	= syear + smonth + sday;
+        uint64_t packed	= NSSwapHostLongLongToBig(sum);
+        idvalue		|= packed;
+        
+        NSLog(@"Packing date %04"PRIu16"-%02"PRIu16"-%02"PRIu16"", (uint16_t)year, (uint16_t)month, (uint16_t)day);
+        return [NSData dataWithBytes:&idvalue length:8];
+    }
     return nil;
 }
 
