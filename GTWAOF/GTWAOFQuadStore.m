@@ -1031,9 +1031,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
                     }
     //                NSLog(@"map: %@ -> %lld", termID, (long long)pageID);
                     
-                    int64_t pid     = (int64_t) pageID;
-                    int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-                    NSData* value   = [NSData dataWithBytes:&bigpid length:8];
+                    NSData* value   = [NSData gtw_bigLongLongDataWithInteger:pageID];
                     [i2t insertValue:value forKey:termID updateContext:ctx];
                     [t2i insertValue:termID forKey:hash updateContext:ctx];
     //                NSLog(@"****** %@ -> %@", hash, termID);
@@ -1042,10 +1040,8 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 //            }];
         }
         
-        uint64_t next_id_value  = (uint64_t)_gen.nextID;
-        uint64_t big_next       = NSSwapHostLongLongToBig(next_id_value);
-        NSData* token           = [NSData dataWithBytes:&NEXT_ID_TOKEN_VALUE length:8];
-        NSData* value           = [NSData dataWithBytes:&big_next length:8];
+        NSData* token           = [NSData gtw_bigLongLongDataWithInteger:NEXT_ID_TOKEN_VALUE];
+        NSData* value           = [NSData gtw_bigLongLongDataWithInteger:_gen.nextID];
         [i2t replaceValue:value forKey:token updateContext:ctx];
         return YES;
     }];
@@ -1145,17 +1141,21 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
     }
     
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
-    int64_t prev    = (int64_t) prevPageID;
+//    int64_t prev    = (int64_t) prevPageID;
     if (verbose) {
-        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
+        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prevPageID);
     }
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t bigprev = NSSwapHostLongLongToBig(prev);
     
+    
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* previous    = [NSData gtw_bigLongLongDataWithInteger:prevPageID];
+
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:QUAD_STORE_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
+    
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:previous.bytes];
+    
     int offset  = DATA_OFFSET;
     for (NSString* name in indexPointers) {
         id<GTWAOFBackedObject> obj  = indexPointers[name];
@@ -1175,9 +1175,8 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
         [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
         offset  += 8;
         
-        int64_t pid     = (int64_t) pageID;
-        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
+        NSData* value   = [NSData gtw_bigLongLongDataWithInteger:pageID];
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:value.bytes];
         offset  += 8;
     }
     for (NSString* name in pagePointers) {
@@ -1199,9 +1198,8 @@ NSData* newQuadStoreHeaderData( NSUInteger pageSize, int64_t prevPageID, NSDicti
         [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:key.bytes];
         offset  += 8;
         
-        int64_t pid     = (int64_t) pageID;
-        int64_t bigpid  = NSSwapHostLongLongToBig(pid);
-        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:&bigpid];
+        NSData* value   = [NSData gtw_bigLongLongDataWithInteger:pageID];
+        [data replaceBytesInRange:NSMakeRange(offset, 8) withBytes:value.bytes];
         offset  += 8;
     }
     if ([data length] != pageSize) {

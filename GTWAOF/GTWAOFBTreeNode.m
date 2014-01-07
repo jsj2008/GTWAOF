@@ -566,7 +566,7 @@
     if (verbose) {
         NSLog(@"creating btree leaf page data");
     }
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
+
     int64_t count   = [keys count];
     int32_t flags   = 0;
     if (root) {
@@ -575,17 +575,19 @@
     int16_t ksize       = (int16_t) keySize;
     int16_t vsize       = (int16_t) valSize;
 
-    int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    int32_t bigflags    = (uint32_t) NSSwapHostIntToBig((unsigned int) flags);
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* countdata   = [NSData gtw_bigLongLongDataWithInteger:count];
+    NSData* flagsdata   = [NSData gtw_bigLongLongDataWithInteger:flags];
+    
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:BTREE_LEAF_NODE_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
-    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
-    [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:&bigflags];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:countdata.bytes];
+    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:countdata.bytes];
+    [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:flagsdata.bytes];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET, 2) withBytes:&bigksize];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET+2, 2) withBytes:&bigvsize];
     
@@ -632,7 +634,7 @@
     if (verbose) {
         NSLog(@"creating btree internal page data with pointers: %@", childrenPageIDs);
     }
-    uint64_t bigts      = NSSwapHostLongLongToBig(ts);
+    
     int64_t count       = [keys count];
     int64_t subcount    = (int64_t) subtreeCount;
     int32_t flags       = 0;
@@ -642,18 +644,20 @@
     int16_t ksize       = (int16_t) keySize;
     int16_t vsize       = (int16_t) valSize;
 
-    int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    int64_t bigsubcount = NSSwapHostLongLongToBig(subcount);
-    int32_t bigflags    = (int32_t) NSSwapHostIntToBig((unsigned int) flags);
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* countdata   = [NSData gtw_bigLongLongDataWithInteger:count];
+    NSData* subcountdata   = [NSData gtw_bigLongLongDataWithInteger:subcount];
+    NSData* flagsdata   = [NSData gtw_bigLongLongDataWithInteger:flags];
+
     int16_t bigksize    = NSSwapHostShortToBig(ksize);
     int16_t bigvsize    = NSSwapHostShortToBig(vsize);
 
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:BTREE_INTERNAL_NODE_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:&bigcount];
-    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:&bigsubcount];
-    [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:&bigflags];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(NODE_ITEM_COUNT_OFFSET, 8) withBytes:countdata.bytes];
+    [data replaceBytesInRange:NSMakeRange(SUBTREE_ITEM_COUNT_OFFSET, 8) withBytes:subcountdata.bytes];
+    [data replaceBytesInRange:NSMakeRange(FLAGS_OFFSET, 4) withBytes:flagsdata.bytes];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET, 2) withBytes:&bigksize];
     [data replaceBytesInRange:NSMakeRange(SIZES_OFFSET+2, 2) withBytes:&bigvsize];
     

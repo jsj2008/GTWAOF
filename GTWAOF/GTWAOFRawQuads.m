@@ -209,20 +209,19 @@
 
 NSMutableData* emptyQuadsData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
-    int64_t prev    = (int64_t) prevPageID;
     if (verbose) {
-        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
+        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prevPageID);
     }
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t bigprev = NSSwapHostLongLongToBig(prev);
     
-    int64_t bigcount    = 0;
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* previous    = [NSData gtw_bigLongLongDataWithInteger:prevPageID];
+    NSData* count       = [NSData gtw_bigLongLongDataWithInteger:0];
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:RAW_QUADS_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:previous.bytes];
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:count.bytes];
     return data;
 }
 
@@ -230,10 +229,10 @@ NSData* newQuadsData( NSUInteger pageSize, NSMutableArray* quads, int64_t prevPa
     int64_t max     = (pageSize / 32) - 1;
     int64_t qcount  = [quads count];
     int64_t count   = (max < qcount) ? max : qcount;
-    int64_t bigcount    = NSSwapHostLongLongToBig(count);
+    NSData* countdata  = [NSData gtw_bigLongLongDataWithInteger:count];
     
     NSMutableData* data = emptyQuadsData(pageSize, prevPageID, verbose);
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:countdata.bytes];
     __block int offset  = DATA_OFFSET;
     NSUInteger i;
     for (i = 0; i < count; i++) {

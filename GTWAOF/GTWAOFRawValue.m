@@ -123,20 +123,20 @@
 
 NSMutableData* emptyValueData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
-    int64_t prev    = (int64_t) prevPageID;
+//    int64_t prev    = (int64_t) prevPageID;
     if (verbose) {
-        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prev);
+        NSLog(@"creating quads page data with previous page ID: %lld (%lld)", prevPageID, prevPageID);
     }
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t bigprev = NSSwapHostLongLongToBig(prev);
-    
-    int64_t biglength    = 0;
+
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* previous    = [NSData gtw_bigLongLongDataWithInteger:prevPageID];
+    NSData* length      = [NSData gtw_bigLongLongDataWithInteger:0];
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:RAW_VALUE_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
-    [data replaceBytesInRange:NSMakeRange(LENGTH_OFFSET, 8) withBytes:&biglength];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:previous.bytes];
+    [data replaceBytesInRange:NSMakeRange(LENGTH_OFFSET, 8) withBytes:length.bytes];
     return data;
 }
 
@@ -144,10 +144,10 @@ NSData* newValueData( NSUInteger pageSize, NSMutableData* value, int64_t prevPag
     int64_t max     = pageSize - DATA_OFFSET;
     int64_t vlength = [value length];
     int64_t length  = (max < vlength) ? max : vlength;
-    int64_t biglength    = NSSwapHostLongLongToBig(length);
-    
+
+    NSData* lengthdata  = [NSData gtw_bigLongLongDataWithInteger:length];
     NSMutableData* data = emptyValueData(pageSize, prevPageID, verbose);
-    [data replaceBytesInRange:NSMakeRange(LENGTH_OFFSET, 8) withBytes:&biglength];
+    [data replaceBytesInRange:NSMakeRange(LENGTH_OFFSET, 8) withBytes:lengthdata.bytes];
     __block int offset  = DATA_OFFSET;
 //    NSUInteger i;
     

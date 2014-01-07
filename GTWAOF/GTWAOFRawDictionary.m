@@ -353,19 +353,19 @@ typedef NS_ENUM(char, GTWAOFDictionaryTermFlag) {
 
 NSMutableData* emptyDictData( NSUInteger pageSize, int64_t prevPageID, BOOL verbose ) {
     uint64_t ts     = (uint64_t) [[NSDate date] timeIntervalSince1970];
-    int64_t prev    = (int64_t) prevPageID;
+//    int64_t prev    = (int64_t) prevPageID;
     if (verbose)
-        NSLog(@"creating dictionary page data with previous page ID: %lld (%lld)", prevPageID, prev);
-    uint64_t bigts  = NSSwapHostLongLongToBig(ts);
-    int64_t bigprev = NSSwapHostLongLongToBig(prev);
+        NSLog(@"creating dictionary page data with previous page ID: %lld (%lld)", prevPageID, prevPageID);
     
-    int64_t bigcount    = 0;
+    NSData* timestamp   = [NSData gtw_bigLongLongDataWithInteger:ts];
+    NSData* previous    = [NSData gtw_bigLongLongDataWithInteger:prevPageID];
+    NSData* count       = [NSData gtw_bigLongLongDataWithInteger:0];
     
     NSMutableData* data = [NSMutableData dataWithLength:pageSize];
     [data replaceBytesInRange:NSMakeRange(0, 4) withBytes:RAW_DICT_COOKIE];
-    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:&bigts];
-    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:&bigprev];
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    [data replaceBytesInRange:NSMakeRange(TS_OFFSET, 8) withBytes:timestamp.bytes];
+    [data replaceBytesInRange:NSMakeRange(PREV_OFFSET, 8) withBytes:previous.bytes];
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:count.bytes];
     return data;
 }
 
@@ -392,12 +392,13 @@ static NSData* packedDataForExtendedPagePair( GTWAOFPage* p ) {
     uint32_t klen       = 8;
     uint32_t bigklen    = NSSwapHostIntToBig(klen);
     int64_t pageID      = (int64_t) p.pageID;
-    int64_t bigpageID   = NSSwapHostLongLongToBig(pageID);
     char kflags         = GTWAOFDictionaryTermFlagExtendedPagePair;
+    
+    NSData* pid         = [NSData gtw_bigLongLongDataWithInteger:pageID];
     
     [data appendBytes:&kflags length:1];
     [data appendBytes:&bigklen length:4];
-    [data appendBytes:&bigpageID length:8];
+    [data appendBytes:pid.bytes length:8];
     
     return data;
 }
@@ -479,8 +480,8 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         [dict removeObjectForKey:key];
     }
     
-    int64_t bigcount    = NSSwapHostLongLongToBig(count);
-    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:&bigcount];
+    NSData* countdata   = [NSData gtw_bigLongLongDataWithInteger:count];
+    [data replaceBytesInRange:NSMakeRange(COUNT_OFFSET, 8) withBytes:countdata.bytes];
     
     if ([data length] != pageSize) {
         NSLog(@"page has bad size (%llu) for keys: %@", (unsigned long long) [data length], handled);

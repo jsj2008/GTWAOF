@@ -305,8 +305,7 @@ int main(int argc, const char * argv[]) {
             fprintf(stdout, "%s\n", [s UTF8String]);
         } else if (!strcmp(op, "term")) {
             long long n     = atoll(argv[argi++]);
-            long long bign  = NSSwapHostLongLongToBig(n);
-            NSData* nodeID  = [NSData dataWithBytes:&bign length:8];
+            NSData* nodeID  = [NSData gtw_bigLongLongDataWithInteger:n];
             SPKTurtleParser* parser  = [[SPKTurtleParser alloc] init];
             GTWAOFRawDictionary* d  = [[GTWAOFRawDictionary alloc] initFindingDictionaryInAOF:aof];
             NSLog(@"%@", d);
@@ -489,8 +488,8 @@ int main(int argc, const char * argv[]) {
                 for (int j = 0; j < 4; j++) {
                     NSString* t = tuple[j];
                     long long n = atoll([t UTF8String]);
-                    long long bign  = NSSwapHostLongLongToBig(n);
-                    [data replaceBytesInRange:NSMakeRange((8*j), 8) withBytes:&bign];
+                    NSData* value  = [NSData gtw_bigLongLongDataWithInteger:n];
+                    [data replaceBytesInRange:NSMakeRange((8*j), 8) withBytes:value.bytes];
                 }
                 NSLog(@"quad data: %@", data);
                 [quads addObject:data];
@@ -511,8 +510,8 @@ int main(int argc, const char * argv[]) {
                     NSString* t = tuple[j];
                     long long n = atoll([t UTF8String]);
                     NSLog(@"quad pos %d: %lld", j, n);
-                    long long bign  = NSSwapHostLongLongToBig(n);
-                    [data replaceBytesInRange:NSMakeRange((8*j), 8) withBytes:&bign];
+                    NSData* value  = [NSData gtw_bigLongLongDataWithInteger:n];
+                    [data replaceBytesInRange:NSMakeRange((8*j), 8) withBytes:value.bytes];
                     NSLog(@"-> data: %@", data);
                 }
                 NSLog(@"quad data: %@", data);
