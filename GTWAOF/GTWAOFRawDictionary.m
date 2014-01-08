@@ -403,7 +403,7 @@ static NSData* packedDataForExtendedPagePair( GTWAOFPage* p ) {
     return data;
 }
 
-NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_t prevPageID, BOOL verbose ) {
+NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_t prevPageID, NSMutableSet* consumedKeys, BOOL verbose ) {
     NSUInteger pageSize = [ctx pageSize];
     NSMutableData* data = emptyDictData(pageSize, prevPageID, verbose);
     NSArray* keys       = [[dict keyEnumerator] allObjects];
@@ -433,8 +433,6 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
         uint32_t klen   = (uint32_t) [key length];
 //        uint32_t vlen   = (uint32_t) [val length];
 
-        
-        
         if (SHOULD_COMPRESS_LONG_DATA) {
             if (klen > GZIP_TERM_LENGTH_THRESHOLD) {
                 NSData* gzkey   = [key gzippedData];
@@ -473,6 +471,10 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
             break;
         }
         
+        if (consumedKeys) {
+            [consumedKeys addObject:key];
+        }
+        
 //        NSLog(@"{ %llu, %llu } %@", (unsigned long long)offset, (unsigned long long)length, packed);
         [data replaceBytesInRange:NSMakeRange(offset, length) withBytes:[packed bytes]];
         offset  += length;
@@ -492,7 +494,6 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
 
 - (GTWMutableAOFRawDictionary*) rewriteWithPageMap:(NSMutableDictionary*)map updateContext:(GTWAOFUpdateContext*) ctx {
     // TODO: rewriting should not be changing the timestamp. figure out a way to preserve it.
-    // TODO: need to rewrite RawValue pages, too.
     NSInteger prevID            = -1;
     GTWAOFRawDictionary* prev   = [self previousPage];
     if (prev) {
@@ -528,7 +529,7 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     int64_t prev  = -1;
     if ([d count]) {
         while ([d count]) {
-            NSData* data    = newDictData(ctx, d, prev, NO);
+            NSData* data    = newDictData(ctx, d, prev, nil, NO);
             if(!data)
                 return NO;
             page    = [ctx createPageWithData:data];
@@ -550,14 +551,15 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     return n;
 }
 
-- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx {
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*)dict settingPageIDs:(NSMutableDictionary*)pageDict updateContext:(GTWAOFUpdateContext*)ctx {
     NSMutableDictionary* d  = [dict mutableCopy];
     int64_t prev  = self.pageID;
     GTWAOFPage* page;
     if ([d count]) {
         while ([d count]) {
             NSUInteger lastCount    = [d count];
-            NSData* data    = newDictData(ctx, d, prev, self.verbose);
+            NSMutableSet* consumedKeys  = [NSMutableSet set];
+            NSData* data    = newDictData(ctx, d, prev, consumedKeys, self.verbose);
             if (lastCount == [d count]) {
                 NSLog(@"Failed to encode any dictionary terms in page creation loop");
                 return NO;
@@ -566,6 +568,9 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
                 return NO;
             page    = [ctx createPageWithData:data];
             prev    = page.pageID;
+            for (NSData* key in consumedKeys) {
+                pageDict[key]   = @(page.pageID);
+            }
         }
     } else {
         NSData* empty   = emptyDictData(ctx.pageSize, prev, self.verbose);
@@ -574,6 +579,10 @@ NSData* newDictData( GTWAOFUpdateContext* ctx, NSMutableDictionary* dict, int64_
     GTWMutableAOFRawDictionary* n   = [[GTWMutableAOFRawDictionary alloc] initWithPage:page fromAOF:ctx];
     [ctx registerPageObject:n];
     return n;
+}
+
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx {
+    return [self dictionaryByAddingDictionary:dict settingPageIDs:nil updateContext:ctx];
 }
 
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict {

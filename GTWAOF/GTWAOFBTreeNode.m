@@ -160,26 +160,20 @@
 - (void) _loadEntries {
     NSInteger ksize = self.keySize;
     if (self.type == GTWAOFBTreeLeafNodeType) {
-        // TODO: only pre-load the keys; lazy-load the values
         int offset  = DATA_OFFSET;
         NSUInteger count    = [self nodeItemCount];
         NSInteger i;
         NSData* data    = _page.data;
         NSMutableArray* keys    = [NSMutableArray arrayWithCapacity:self.maxLeafPageKeys];
-        NSMutableArray* vals    = [NSMutableArray arrayWithCapacity:self.maxLeafPageKeys];
         NSInteger vsize = self.valSize;
         @autoreleasepool {
             for (i = 0; i < count; i++) {
                 NSData* key = [data subdataWithRange:NSMakeRange(offset, ksize)];
-                offset      += ksize;
-                NSData* val = [data subdataWithRange:NSMakeRange(offset, vsize)];
-                offset      += vsize;
+                offset      += ksize + vsize;
                 [keys addObject:key];
-                [vals addObject:val];
             }
         }
         _keys       = [keys copy];
-        _objects    = [vals copy];
     } else {
         int offset  = DATA_OFFSET;
         NSUInteger count    = [self nodeItemCount];
@@ -209,6 +203,22 @@
         _keys       = [keys copy];
         _pageIDs    = [pageIDs copy];
     }
+}
+
+- (void) _loadObjects {
+    assert(self.type == GTWAOFBTreeLeafNodeType);
+    NSUInteger count        = [self nodeItemCount];
+    NSData* data            = _page.data;
+    NSMutableArray* vals    = [NSMutableArray arrayWithCapacity:self.maxLeafPageKeys];
+    NSInteger ksize         = self.keySize;
+    NSInteger vsize         = self.valSize;
+    int offset              = DATA_OFFSET + (int)ksize;
+    for (NSInteger i = 0; i < count; i++) {
+        NSData* val = [data subdataWithRange:NSMakeRange(offset, vsize)];
+        offset      += vsize + ksize;
+        [vals addObject:val];
+    }
+    _objects    = [vals copy];
 }
 
 - (BOOL) isRoot {
@@ -269,14 +279,24 @@
 }
 
 - (NSArray*) allObjects {
+    if (!_objects) {
+        [self _loadObjects];
+    }
     return _objects;
+}
+
+- (NSData*) objectAtIndex:(NSUInteger)index {
+    if (!_objects) {
+        [self _loadObjects];
+    }
+    return _objects[index];
 }
 
 - (NSArray*) allPairs {
     assert(self.type == GTWAOFBTreeLeafNodeType);
     NSMutableArray* pairs   = [NSMutableArray array];
     for (NSInteger i = 0; i < [_keys count]; i++) {
-        [pairs addObject:@[_keys[i], _objects[i]]];
+        [pairs addObject:@[_keys[i], [self objectAtIndex:i]]];
     }
     return pairs;
 }
@@ -338,7 +358,7 @@
     BOOL stop           = NO;
     NSInteger max       = range.location + range.length;
     for (i = range.location; i < max; i++) {
-        block(_keys[i], _objects[i], &stop);
+        block(_keys[i], [self objectAtIndex:i], &stop);
         if (stop)
             break;
     }
@@ -867,13 +887,12 @@
     NSMutableArray* keys    = [[node allKeys] mutableCopy];
     NSMutableArray* vals    = [[node allObjects] mutableCopy];
     NSInteger keycount      = [keys count];
-    NSUInteger i    = -1;
-    for (i = 0; i < keycount; i++) {
-        if ([key gtw_compare:keys[i]] == NSOrderedAscending)
-            break;
-    }
-    [keys insertObject:key atIndex:i];
-    [vals insertObject:object atIndex:i];
+    
+    NSInteger found = [keys indexOfObject:key inSortedRange:NSMakeRange(0, [keys count]) options:NSBinarySearchingInsertionIndex usingComparator:^NSComparisonResult(NSData* obj1, NSData* obj2) {
+        return [obj1 gtw_compare:obj2];
+    }];
+    [keys insertObject:key atIndex:found];
+    [vals insertObject:object atIndex:found];
     assert((keycount+1) == [keys count]);
     assert((keycount+1) == [vals count]);
     //    NSLog(@"rewriting leaf node with new item. leaf is root: %d", [node isRoot]);

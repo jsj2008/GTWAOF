@@ -52,6 +52,7 @@
 
 + (instancetype) mutableDictionaryWithDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*) ctx;
 - (instancetype) dictionaryByAddingDictionary:(NSDictionary*) dict updateContext:(GTWAOFUpdateContext*)ctx;
+- (instancetype) dictionaryByAddingDictionary:(NSDictionary*)dict settingPageIDs:(NSMutableDictionary*)pageDict updateContext:(GTWAOFUpdateContext*)ctx;
 - (GTWMutableAOFRawDictionary*) dictionaryByAddingDictionary:(NSDictionary*) dict;
 + (GTWAOFPage*) dictionaryPageWithDictionary:(NSDictionary*)dict updateContext:(GTWAOFUpdateContext*) ctx;
 

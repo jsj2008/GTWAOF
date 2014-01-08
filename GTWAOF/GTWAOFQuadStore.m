@@ -1015,29 +1015,21 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 //        NSLog(@"addQuads ctx: %@", ctx.createdPages);
 
         if ([map count]) {
-            self.mutableDict    = [self.mutableDict dictionaryByAddingDictionary:map updateContext:ctx];
-            GTWAOFRawDictionary* dict   = _dict;
-//            [self.aof updateWithBlock:^BOOL(GTWAOFUpdateContext *ctx) {
-                for (NSData* termData in map) {
-                    NSData* hash    = [self hashData:termData];
-    //                NSLog(@"generated hash %@ for term %@", hash, termData);
-                    NSData* termID  = map[termData];
-                    GTWAOFPage* p   = [dict pageForKey:termData];
-                    NSInteger pageID;
-                    if (p) {
-                        pageID  = p.pageID;
-                    } else {
-                        pageID  = -1;
-                    }
-    //                NSLog(@"map: %@ -> %lld", termID, (long long)pageID);
-                    
-                    NSData* value   = [NSData gtw_bigLongLongDataWithInteger:pageID];
-                    [i2t insertValue:value forKey:termID updateContext:ctx];
-                    [t2i insertValue:termID forKey:hash updateContext:ctx];
-    //                NSLog(@"****** %@ -> %@", hash, termID);
-                }
-//                return YES;
-//            }];
+            NSMutableDictionary* pageIDs    = [NSMutableDictionary dictionary];
+            self.mutableDict    = [self.mutableDict dictionaryByAddingDictionary:map settingPageIDs:pageIDs updateContext:ctx];
+            for (NSData* termData in map) {
+                NSData* hash    = [self hashData:termData];
+//                NSLog(@"generated hash %@ for term %@", hash, termData);
+                
+                NSNumber* pid   = pageIDs[termData];
+                NSData* termID  = map[termData];
+//                NSLog(@"map: %@ -> %@", termID, pid);
+                
+                NSData* value   = [NSData gtw_bigLongLongDataWithInteger:[pid integerValue]];
+                [i2t insertValue:value forKey:termID updateContext:ctx];
+                [t2i insertValue:termID forKey:hash updateContext:ctx];
+//                NSLog(@"****** %@ -> %@", hash, termID);
+            }
         }
         
         NSData* token           = [NSData gtw_bigLongLongDataWithInteger:NEXT_ID_TOKEN_VALUE];

@@ -730,7 +730,7 @@ static uint16_t inlined_datetime_day ( uint64_t idvalue ) {
         uint64_t packed	= NSSwapHostLongLongToBig(sum);
         idvalue		|= packed;
         
-        NSLog(@"Packing date %04"PRIu16"-%02"PRIu16"-%02"PRIu16"", (uint16_t)year, (uint16_t)month, (uint16_t)day);
+//        NSLog(@"Packing date %04"PRIu16"-%02"PRIu16"-%02"PRIu16"", (uint16_t)year, (uint16_t)month, (uint16_t)day);
         return [NSData dataWithBytes:&idvalue length:8];
     }
     return nil;
