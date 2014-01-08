@@ -26,17 +26,21 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
     NSArray* _keys;
     NSArray* _objects;
     NSArray* _pageIDs;
+    NSUInteger _subTreeCount;
+    NSUInteger _itemCount;
+    NSUInteger _keySize, _valSize;
 }
 
 @property (readwrite) id<GTWAOF,GTWMutableAOF> aof;
-@property (readonly) GTWAOFPage* page;
-@property (readonly) NSInteger flags;
-@property (readonly) NSInteger keySize;
-@property (readonly) NSInteger valSize;
+@property (readwrite) GTWAOFPage* page;
+@property (readwrite) NSInteger flags;
+@property (readwrite) NSInteger keySize;
+@property (readwrite) NSInteger valSize;
 @property (readonly) NSInteger maxInternalPageKeys;
 @property (readonly) NSInteger maxLeafPageKeys;
+
 @property (readwrite) GTWAOFBTreeNode* parent;
-@property (readonly) GTWAOFBTreeNodeType type;
+@property (readwrite) GTWAOFBTreeNodeType type;
 
 + (NSInteger) maxInternalPageKeysForKeySize:(NSInteger)keySize;
 + (NSInteger) maxLeafPageKeysForKeySize:(NSInteger)keySize valueSize:(NSInteger)valSize;
@@ -75,7 +79,7 @@ typedef NS_OPTIONS(uint32_t, GTWAOFBTreeNodeFlags) {
 
 - (GTWMutableAOFBTreeNode*) initInternalWithParent:(GTWAOFBTreeNode*)parent isRoot:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys pageIDs:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx;
 - (GTWMutableAOFBTreeNode*) initLeafWithParent:(GTWAOFBTreeNode*)parent isRoot:(BOOL)root keySize:(NSInteger)keySize valueSize:(NSInteger)valSize keys:(NSArray*)keys objects:(NSArray*)objects updateContext:(GTWAOFUpdateContext*) ctx;
-+ (GTWMutableAOFBTreeNode*) rewriteInternalNode:(GTWAOFBTreeNode*)node replacingChildID:(NSInteger)oldID withNewNode:(GTWAOFBTreeNode*)newNode updateContext:(GTWAOFUpdateContext*) ctx;
++ (GTWMutableAOFBTreeNode*) rewriteInternalNode:(GTWAOFBTreeNode*)node replacingChild:(GTWAOFBTreeNode*)oldNode withNewNode:(GTWAOFBTreeNode*)newNode updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWMutableAOFBTreeNode*) rewriteInternalNode:(GTWAOFBTreeNode*)node replacingChildren:(NSArray*)oldchildren withNewNode:(GTWAOFBTreeNode*)newNode updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node addingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx;
 + (GTWMutableAOFBTreeNode*) rewriteLeafNode:(GTWAOFBTreeNode*)node replacingObject:(NSData*)object forKey:(NSData*)key updateContext:(GTWAOFUpdateContext*) ctx;

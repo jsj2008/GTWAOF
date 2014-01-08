@@ -100,13 +100,14 @@ static const NSInteger valSize  = 8;
 }
 
 - (NSInteger) count {
-    __block NSInteger count = 0;
-//    NSLog(@"> count");
-    [self enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
-        count++;
-    }];
-//    NSLog(@"< count");
-    return count;
+    return [_root subTreeItemCount];
+//    __block NSInteger count = 0;
+////    NSLog(@"> count");
+//    [self enumerateKeysAndObjectsUsingBlock:^(NSData *key, NSData *obj, BOOL *stop) {
+//        count++;
+//    }];
+////    NSLog(@"< count");
+//    return count;
 }
 
 - (GTWAOFBTreeNode*) lcaNodeForKeysWithPrefix:(NSData*)prefix {
@@ -468,7 +469,7 @@ static GTWAOFBTreeNode* copy_btree ( id<GTWAOF> aof, GTWAOFUpdateContext* ctx, G
 //        NSLog(@"-> rewrite loop");
         GTWAOFBTreeNode* oldparent  = oldnode.parent;
         assert(oldparent);
-        GTWAOFBTreeNode* newparent  = [GTWMutableAOFBTreeNode rewriteInternalNode:oldparent replacingChildID:oldnode.pageID withNewNode:newnode updateContext:ctx];
+        GTWAOFBTreeNode* newparent  = [GTWMutableAOFBTreeNode rewriteInternalNode:oldparent replacingChild:oldnode withNewNode:newnode updateContext:ctx];
         newnode.parent  = newparent;
         newnode = newparent;
         oldnode = oldparent;
