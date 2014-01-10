@@ -15,7 +15,7 @@
     if (self = [self init]) {
         _pageID     = pageID;
         _committed  = committed;
-        _data       = data;
+        _data       = [data copy];
     }
     return self;
 }
