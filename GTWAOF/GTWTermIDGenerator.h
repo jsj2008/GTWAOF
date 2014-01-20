@@ -5,6 +5,7 @@
 //  Created by Gregory Williams on 12/28/13.
 //  Copyright (c) 2013 Gregory Todd Williams. All rights reserved.
 //
+//  Based on the NodeID bit-packing design of Apache Jena TDB <http://svn.apache.org/repos/asf/jena/trunk/jena-tdb/src/main/java/com/hp/hpl/jena/tdb/store/NodeId.java>
 
 #import <Foundation/Foundation.h>
 #import <GTWSWBase/GTWSWBase.h>
