@@ -10,8 +10,8 @@
 #import "NSData+GTWCompare.h"
 #import "GTWAOFUpdateContext.h"
 
-static const NSInteger keySize  = 32;
-static const NSInteger valSize  = 8;
+//static const NSInteger keySize  = 32;
+//static const NSInteger valSize  = 8;
 
 @implementation GTWAOFBTree
 

@@ -783,6 +783,8 @@
 		37527E7A18553F5B0085556E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				DEPLOYMENT_LOCATION = YES;
+				DSTROOT = /;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(USER_LIBRARY_DIR)/Frameworks",
@@ -803,6 +805,8 @@
 		37527E7B18553F5B0085556E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				DEPLOYMENT_LOCATION = YES;
+				DSTROOT = /;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(USER_LIBRARY_DIR)/Frameworks",
@@ -866,6 +870,8 @@
 		37F18DF5187B1664007A2FD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				DEPLOYMENT_LOCATION = YES;
+				DSTROOT = /;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(USER_LIBRARY_DIR)/Frameworks",
@@ -884,6 +890,8 @@
 		37F18DF6187B1664007A2FD3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				DEPLOYMENT_LOCATION = YES;
+				DSTROOT = /;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(USER_LIBRARY_DIR)/Frameworks",
@@ -990,6 +998,7 @@
 				37F18DF6187B1664007A2FD3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		37FEA4AA186407F800A0BCC2 /* Build configuration list for PBXNativeTarget "GTWAOF Tests" */ = {
 			isa = XCConfigurationList;

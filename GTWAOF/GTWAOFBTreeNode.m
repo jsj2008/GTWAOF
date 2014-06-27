@@ -166,12 +166,10 @@
         NSData* data    = _page.data;
         NSMutableArray* keys    = [NSMutableArray arrayWithCapacity:self.maxLeafPageKeys];
         NSInteger vsize = self.valSize;
-        @autoreleasepool {
-            for (i = 0; i < count; i++) {
-                NSData* key = [data subdataWithRange:NSMakeRange(offset, ksize)];
-                offset      += ksize + vsize;
-                [keys addObject:key];
-            }
+        for (i = 0; i < count; i++) {
+            NSData* key = [data subdataWithRange:NSMakeRange(offset, ksize)];
+            offset      += ksize + vsize;
+            [keys addObject:key];
         }
         _keys       = [keys copy];
     } else {

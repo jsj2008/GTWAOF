@@ -15,7 +15,7 @@
 #import <SPARQLKit/SPARQLKit.h>
 #import "NSData+GTWCompare.h"
 
-#define BULK_LOADING_BATCH_SIZE 500
+#define BULK_LOADING_BATCH_SIZE 1000
 
 #define TS_OFFSET       8
 #define PREV_OFFSET     16
@@ -40,6 +40,10 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
 
 + (NSSet*) implementedProtocols {
     return [NSSet setWithObjects:@protocol(GTWQuadStore), nil];
+}
+
+- (NSSet*) requiredInitKeys {
+    return [NSSet setWithArray:@[@"file"]];
 }
 
 - (instancetype) initWithDictionary: (NSDictionary*) dictionary {
@@ -678,7 +682,7 @@ static const uint64_t NEXT_ID_TOKEN_VALUE  = 0xffffffffffffffff;
     NSData* bestPrefix  = [self prefixForKeyOrder:bestKeyOrder matchingSubject:s predicate:p object:o graph:g];
   
     GTWAOFBTreeNode* lca    = [index lcaNodeForKeysWithPrefix:bestPrefix];
-//    NSLog(@"LCA: %@", lca);
+//    NSLog(@"%@ LCA: %@", bestKeyOrder, lca);
     return [lca lastModified];
     
     // this is rather coarse-grained, but we don't expect to be using the raw-quads a lot

@@ -29,8 +29,8 @@
 #import "NSIndexSet+GTWIndexRange.h"
 #import "GTWAOFMemoryMappedFile.h"
 
-static const NSInteger keySize  = 32;
-static const NSInteger valSize  = 8;
+//static const NSInteger keySize  = 32;
+//static const NSInteger valSize  = 8;
 
 double current_time ( void ) {
 	struct timeval t;
