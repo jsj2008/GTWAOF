@@ -464,9 +464,24 @@ static node_subtype_t node_subtype ( NSData* data ) {
     NSMutableString* string    = [NSMutableString stringWithFormat:@"%"PRId64"", value];
     if (scale < 0) {
         NSInteger len = [string length];
-        NSString* l = [string substringWithRange:NSMakeRange(0, len+scale)];
-        NSString* r = [string substringFromIndex:len+scale];
-        string      = [NSMutableString stringWithFormat:@"%@.%@", l, r];
+        long rlength     = len + scale;
+        NSRange range   = NSMakeRange(0, rlength);
+        int iscale = scale;
+        NSString* orig = string;
+        if (rlength > 0) {
+            NSString* l = [string substringWithRange:range];
+            NSString* r = [string substringFromIndex:len+scale];
+            string      = [NSMutableString stringWithFormat:@"%@.%@", l, r];
+//            NSLog(@"unpack decimal: %@*10^%d = %@", orig, iscale, string);
+        } else {
+            int zeros_len  = abs((int)[string length] + iscale);
+            string          = [NSMutableString stringWithFormat:@"0."];
+            for (int i = 0; i < zeros_len; i++) {
+                [string appendString:@"0"];
+            }
+            [string appendString: orig];
+//            NSLog(@"unpack decimal: %@*10^%d = %@", orig, iscale, string);
+        }
     } else if (scale > 0) {
         for (int i = 0; i < scale; i++) {
             [string appendString:@"0"];
